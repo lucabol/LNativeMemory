@@ -4,6 +4,7 @@ using LNativeMemory;
 using System.Runtime.InteropServices;
 
 namespace LNativeMemory.Tests {
+
     [StructLayout(LayoutKind.Auto)]
     struct CStruct {
         public int X;
@@ -12,6 +13,7 @@ namespace LNativeMemory.Tests {
         double d;
         Decimal dec;
     }
+
     public class Tests {
 
         [Fact]
@@ -58,7 +60,17 @@ namespace LNativeMemory.Tests {
                     Assert.Equal(3, despan[i]);
                     Assert.True(bspan[i]);
                 }
+            }
+        }
 
+        [Fact]
+        public void CanInitializeAndAllocate() {
+            using (var ar = new Arena(1_000)) {
+                ref var s = ref ar.Alloc(new CStruct { X = 6 });
+                Assert.Equal(6, s.X);
+
+                var span = ar.Alloc(10, new CStruct { X = 7 });
+                for(int i = 0; i < span.Length; i++) Assert.Equal(7, span[i].X);
             }
         }
 
@@ -82,6 +94,25 @@ namespace LNativeMemory.Tests {
                 ar.Alloc<decimal>(10);
                 Assert.Equal(1000 - sizeof(float) - sizeof(decimal) * 10, ar.BytesLeft);
             }
+        }
+
+        [Fact]
+        public unsafe void CanUseStackMemory() {
+            var buffer = stackalloc byte[100];
+
+            using (var ar = new Arena(&buffer[0], 100)) {
+                var k = ar.Alloc<double>(2);
+                Assert.Equal(0, k[0]);
+                k[0] = 3;
+                Assert.Equal(2, k.Length);
+            }
+
+            using (var ar = new Arena(&buffer[0], 100)) {
+                var k = ar.Alloc<double>(2);
+                Assert.Equal(0, k[0]);
+                Assert.Equal(2, k.Length);
+            }
+
         }
     }
 }

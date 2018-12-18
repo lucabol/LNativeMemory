@@ -5,19 +5,34 @@ using System.Runtime.InteropServices;
 
 namespace LNativeMemory {
 
+    internal unsafe static class Utils {
+        internal static void ZeroMem(byte* start, int size) { for (int i = 0; i < size; ++i) start[i] = 0;}
+    }
+
     // It is a mutable value type implementing an interface, all hell break loose!
     // But C# doesn't box it when in an using statement, otherwise it is supposed to be passed around by ref
     public unsafe struct Arena : IDisposable {
         private byte* _start;
         private byte* _nextAlloc;
         private int _size;
+        private bool _ownsMemory;
 
         public Arena(int totalBytes) {
             Debug.Assert(totalBytes > 0);
 
+            _ownsMemory = true;
             _start = _nextAlloc = (byte*)Marshal.AllocHGlobal(totalBytes).ToPointer();
             _size = totalBytes;
-            for (int i = 0; i < totalBytes; ++i) _start[i] = 0;
+            Utils.ZeroMem(_start, _size);
+        }
+
+        public Arena(byte* start, int totalBytes) {
+            Debug.Assert(totalBytes > 0);
+
+            _ownsMemory = false;
+            _start = _nextAlloc = start;
+            _size = totalBytes;
+            Utils.ZeroMem(_start, _size);
         }
 
         public ref T Alloc<T>() where T : unmanaged {
@@ -27,6 +42,19 @@ namespace LNativeMemory {
 
             return ref FastAlloc<T>(sizeType);
         }
+
+        public ref T Alloc<T>(in T toCopy) where T : unmanaged {
+            ref var r = ref Alloc<T>();
+            r = toCopy;
+            return ref r;
+        }
+
+        public Span<T> Alloc<T>(int n, in T toCopy) where T : unmanaged {
+            var span = Alloc<T>(n);
+            for (int i = 0; i < n; i++) span[i] = toCopy;           
+            return span;
+        }
+
 
         public Span<T> Alloc<T>(int n) where T : unmanaged {
             var sizeArray = sizeof(T) * n;
@@ -58,7 +86,7 @@ namespace LNativeMemory {
         public int TotalBytes => _size;
 
         public void Dispose() {
-            Marshal.FreeHGlobal((IntPtr)_start);
+            if (_ownsMemory) Marshal.FreeHGlobal((IntPtr)_start);
         }
     }
 
