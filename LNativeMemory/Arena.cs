@@ -25,9 +25,7 @@ namespace LNativeMemory {
             if (_nextAlloc + sizeType > _start + _size) throw new OutOfMemoryException
                     ($"Trying to allocate {sizeType} bytes for a type {typeof(T).FullName}.\nStart: {(int)_start}\nNextAlloc: {(int)_nextAlloc}\nSize:{(int)_size}");
 
-            var ptr = _nextAlloc;
-            _nextAlloc += sizeType;
-            return ref (*((T*)ptr));
+            return ref FastAlloc<T>(sizeType);
         }
 
         public Span<T> Alloc<T>(int n) where T : unmanaged {
@@ -35,13 +33,10 @@ namespace LNativeMemory {
             if (_nextAlloc + sizeArray > _start + _size) throw new OutOfMemoryException
                     ($"Trying to allocate {sizeArray} bytes for an array {typeof(T).FullName}[{n}].\nStart: {(int)_start}\nNextAlloc: {(int)_nextAlloc}\nSize:{_size}");
 
-            var ptr = _nextAlloc;
-            _nextAlloc += sizeArray;
-            return new Span<T>(ptr, n);
+            return FastAlloc<T>(n, sizeArray);
         }
 
-        public ref T FastAlloc<T>() where T : unmanaged {
-            var sizeType = sizeof(T);
+        public ref T FastAlloc<T>(int sizeType) where T : unmanaged {
             Debug.Assert(_nextAlloc + sizeType <= _start + _size,
                     $"Trying to allocate {sizeType} bytes for a type {typeof(T).FullName}.\nStart: {(int)_start}\nNextAlloc: {(int)_nextAlloc}\nSize:{(int)_size}");
 
@@ -50,13 +45,12 @@ namespace LNativeMemory {
             return ref (*((T*)ptr));
         }
 
-        public Span<T> FastAlloc<T>(int n) where T : unmanaged {
-            var sizeArray = sizeof(T) * n;
-            Debug.Assert(_nextAlloc + sizeArray <= _start + _size,
-                    $"Trying to allocate {sizeArray} bytes for an array {typeof(T).FullName}[{n}].\nStart: {(int)_start}\nNextAlloc: {(int)_nextAlloc}\nSize:{_size}");
+        public Span<T> FastAlloc<T>(int n, int sizeArrayInBytes) where T : unmanaged {
+            Debug.Assert(_nextAlloc + sizeArrayInBytes <= _start + _size,
+                    $"Trying to allocate {sizeArrayInBytes} bytes for an array {typeof(T).FullName}[{n}].\nStart: {(int)_start}\nNextAlloc: {(int)_nextAlloc}\nSize:{_size}");
 
             var ptr = _nextAlloc;
-            _nextAlloc += sizeArray;
+            _nextAlloc += sizeArrayInBytes;
             return new Span<T>(ptr, n);
         }
 

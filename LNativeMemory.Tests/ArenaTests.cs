@@ -3,7 +3,7 @@ using Xunit;
 using LNativeMemory;
 using System.Runtime.InteropServices;
 
-namespace ArenaTests {
+namespace LNativeMemory.Tests {
     [StructLayout(LayoutKind.Auto)]
     struct CStruct {
         public int X;
@@ -17,13 +17,13 @@ namespace ArenaTests {
         [Fact]
         public void CanAllocateStruct() {
             using (var ar = new Arena(1_000_000)) {
-                ref var s = ref ar.FastAlloc<CStruct>();
+                ref var s = ref ar.Alloc<CStruct>();
                 Assert.Equal(0, s.X);
                 s.X = 3;
                 Assert.Equal(3, s.X);
 
                 var n = 100;
-                var span = ar.FastAlloc<CStruct>(n);
+                var span = ar.Alloc<CStruct>(n);
                 foreach (var c in span) Assert.Equal(0, c.X);
                 for (int i = 0; i < n; i++) span[i].X = 3;
                 foreach (var c in span) Assert.Equal(3, c.X);
@@ -77,9 +77,9 @@ namespace ArenaTests {
         [Fact]
         public void GeCorrectRemainingSize() {
             using (var ar = new Arena(1000)) {
-                ar.FastAlloc<float>();
+                ar.Alloc<float>();
                 Assert.Equal(1000 - sizeof(float), ar.BytesLeft);
-                ar.FastAlloc<decimal>(10);
+                ar.Alloc<decimal>(10);
                 Assert.Equal(1000 - sizeof(float) - sizeof(decimal) * 10, ar.BytesLeft);
             }
         }
