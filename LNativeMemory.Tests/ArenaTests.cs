@@ -18,7 +18,7 @@ namespace LNativeMemory.Tests {
 
         [Fact]
         public void CanAllocateStruct() {
-            using (var ar = new Arena(1_000_000)) {
+            using (var ar = new NativeArena(1_000_000)) {
                 ref var s = ref ar.Alloc<CStruct>();
                 Assert.Equal(0, s.X);
                 s.X = 3;
@@ -34,7 +34,7 @@ namespace LNativeMemory.Tests {
 
         [Fact]
         public void CanAllocatePrimitiveTypes() {
-            using (var ar = new Arena(1_000)) {
+            using (var ar = new NativeArena(1_000)) {
                 var ispan = ar.Alloc<int>(10);
                 var fspan = ar.Alloc<float>(10);
                 var dspan = ar.Alloc<double>(10);
@@ -65,18 +65,18 @@ namespace LNativeMemory.Tests {
 
         [Fact]
         public void CanInitializeAndAllocate() {
-            using (var ar = new Arena(1_000)) {
+            using (var ar = new NativeArena(1_000)) {
                 ref var s = ref ar.Alloc(new CStruct { X = 6 });
                 Assert.Equal(6, s.X);
 
                 var span = ar.Alloc(10, new CStruct { X = 7 });
-                for(int i = 0; i < span.Length; i++) Assert.Equal(7, span[i].X);
+                for (int i = 0; i < span.Length; i++) Assert.Equal(7, span[i].X);
             }
         }
 
         [Fact]
         public void ThrowsExceptionWhenMemoryIsFull() {
-            using (var ar = new Arena(100)) {
+            using (var ar = new NativeArena(100)) {
                 var i = 0;
                 Assert.Throws<OutOfMemoryException>(() => {
                     while (i < 1_000_000) { ar.Alloc<byte>(); i++; }
@@ -88,11 +88,11 @@ namespace LNativeMemory.Tests {
 
         [Fact]
         public void GeCorrectRemainingSize() {
-            using (var ar = new Arena(1000)) {
+            using (var ar = new NativeArena(1000)) {
                 ar.Alloc<float>();
-                Assert.Equal(1000 - sizeof(float), ar.BytesLeft);
+                Assert.Equal((uint)(1000 - sizeof(float)), ar.BytesLeft);
                 ar.Alloc<decimal>(10);
-                Assert.Equal(1000 - sizeof(float) - sizeof(decimal) * 10, ar.BytesLeft);
+                Assert.Equal((uint)(1000 - sizeof(float) - sizeof(decimal) * 10), ar.BytesLeft);
             }
         }
 
@@ -100,19 +100,44 @@ namespace LNativeMemory.Tests {
         public unsafe void CanUseStackMemory() {
             var buffer = stackalloc byte[100];
 
-            using (var ar = new Arena(&buffer[0], 100)) {
-                var k = ar.Alloc<double>(2);
-                Assert.Equal(0, k[0]);
-                k[0] = 3;
-                Assert.Equal(2, k.Length);
-            }
+            var ar = new Arena(new Span<byte>(&buffer[0], 100));
+            var k = ar.Alloc<double>(2);
+            Assert.Equal(0, k[0]);
+            k[0] = 3;
+            Assert.Equal(2, k.Length);
 
-            using (var ar = new Arena(&buffer[0], 100)) {
-                var k = ar.Alloc<double>(2);
-                Assert.Equal(0, k[0]);
-                Assert.Equal(2, k.Length);
-            }
+            ar = new Arena(new Span<byte>(&buffer[0], 100));
+            k = ar.Alloc<double>(2);
+            Assert.Equal(0, k[0]);
+            Assert.Equal(2, k.Length);
+        }
 
+        [Fact]
+        public void CanFreeJustLastAllocated() {
+            using (var ar = new NativeArena(1000)) {
+                ref var c = ref ar.Alloc<CStruct>();
+                ref var d = ref ar.Alloc<CStruct>();
+
+                var initialBytes = ar.BytesLeft;
+                ar.Free(ref c);
+                var currentBytes = ar.BytesLeft;
+                Assert.Equal(initialBytes, currentBytes); // Nothing is freed
+                ar.Free(ref d);
+                currentBytes = ar.BytesLeft;
+                Assert.True(currentBytes > initialBytes); // Here we freed some memory
+                ar.Free(ref c);
+                Assert.True(ar.BytesLeft > currentBytes); // Freed again, aka inverse order works
+
+
+                var sp1 = ar.Alloc<CStruct>(10);
+                var sp2 = ar.Alloc<CStruct>(10);
+                initialBytes = ar.BytesLeft;
+                ar.Free(sp1);
+                Assert.Equal(initialBytes, ar.BytesLeft); // Nothing is freed
+                ar.Free(sp2);
+                Assert.True(ar.BytesLeft > initialBytes); // Here we freed some memory
+
+            }
         }
     }
 }
