@@ -16,6 +16,9 @@ namespace LNativeMemory {
         void FastFree<T>(ref T item, int size) where T : unmanaged;
         void Free<T>(Span<T> span) where T : unmanaged;
         void FastFree<T>(Span<T> span, int size) where T : unmanaged;
+
+        void Reset();
+
         uint BytesLeft { get; }
         uint TotalBytes { get; }
     }

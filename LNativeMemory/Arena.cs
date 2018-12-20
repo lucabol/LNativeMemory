@@ -75,7 +75,10 @@ namespace LNativeMemory {
 
         public unsafe void FastFree<T>(ref T item, int size) where T : unmanaged {
             byte* addr = (byte*) Unsafe.AsPointer(ref item);
-            if (addr + size == _nextAlloc) _nextAlloc = addr;
+            if (addr + size == _nextAlloc) {
+                Unsafe.InitBlock(addr, 0, (uint)size);
+                _nextAlloc = addr;
+            }
         }
 
         public void Free<T>(Span<T> span) where T : unmanaged {
@@ -84,7 +87,15 @@ namespace LNativeMemory {
 
         public unsafe void FastFree<T>(Span<T> span, int size) where T : unmanaged {
             byte* addr = (byte*)Unsafe.AsPointer(ref span[0]);
-            if (addr + size * span.Length == _nextAlloc) _nextAlloc = addr;
+            if (addr + size * span.Length == _nextAlloc) {
+                Unsafe.InitBlock(addr, 0, (uint)size);
+                _nextAlloc = addr;
+            }
+        }
+
+        public void Reset() {
+            Unsafe.InitBlock(_start, 0, _size);
+            _nextAlloc = _start;
         }
 
         public uint BytesLeft => _size - (uint)((byte*)_nextAlloc - (byte*)_start);

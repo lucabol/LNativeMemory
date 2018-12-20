@@ -144,7 +144,17 @@ namespace LNativeMemory.Tests {
             Assert.Equal(initialBytes, ar.BytesLeft); // Nothing is freed
             ar.Free(sp2);
             Assert.True(ar.BytesLeft > initialBytes); // Here we freed some memory
-
         }
-    }
+        [Theory]
+        [MemberData(nameof(GetAllocator), parameters: 1)]
+        public void ResetWorks<T>(T ar) where T : IAllocator {
+            ar.Alloc<CStruct>(20);
+            Assert.True(ar.BytesLeft < ar.TotalBytes);
+            ar.Reset();
+
+            Assert.Equal(bufferSize, (int) ar.BytesLeft);
+            var span = ar.Alloc<CStruct>(20);
+            Assert.Equal(0, span[0].X);
+        }
+     }
 }
