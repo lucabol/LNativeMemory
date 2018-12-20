@@ -3,18 +3,22 @@
     using System.Diagnostics.Tracing;
 
     public static class GC2 {
-        static private GcEventListener _action;
+        static private GcEventListener _evListener;
 
         public static bool TryStartNoGCRegion(long totalSize, Action actionWhenAllocatedMore) {
 
-            var succeeded = GC.TryStartNoGCRegion(totalSize);
-            _action = new GcEventListener(actionWhenAllocatedMore);
+            GC.Collect();
+            _evListener = new GcEventListener(actionWhenAllocatedMore);
+            var succeeded = GC.TryStartNoGCRegion(totalSize,true);
             return succeeded;
         }
 
         public static void EndNoGCRegion() {
             try {
-                _action = null;
+                if (_evListener != null) {
+                    _evListener.Dispose();
+                    _evListener = null;
+                }
                 System.GC.EndNoGCRegion();
             } catch (InvalidOperationException) {
             }
@@ -35,9 +39,13 @@
         }
 
         protected override void OnEventWritten(EventWrittenEventArgs eventData) {
-            if (eventData.EventName.StartsWith("GCStart")) {
+            if (eventData.EventName.StartsWith("GC"))
+                Console.WriteLine(eventData.EventName);
+            if (eventData.EventName.StartsWith("GCStart") && _action != null) {
                 _action();
             }
         }
+
+        public override void Dispose() { _action = null; base.Dispose(); }
     }
 }

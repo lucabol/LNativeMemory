@@ -1,21 +1,37 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Text;
 using System.Threading;
 using Xunit;
+using Xunit.Abstractions;
 
 namespace LNativeMemory.Tests {
+
+
 
     // XUnit executes all tests in a class sequentially, so nothing to do here
     public class GC2Tests {
 
+        const int sleepTime = 200;
+        private readonly ITestOutputHelper output;
+
+        public GC2Tests(ITestOutputHelper output) => this.output = output;
+
         [Fact]
         public void NoAllocationToLimit() {
             try {
-                var succeeded = GC2.TryStartNoGCRegion(100, () => Assert.True(false, "No GC should have been triggered"));
-                Assert.True(succeeded);
+                var triggered = false;
+                var succeeded = GC2.TryStartNoGCRegion(1_000, () => {
+                    triggered = true;
+                });
+                Assert.True(succeeded, "Not entered NoGC Region");
+                Thread.Sleep(sleepTime);
+                Assert.False(triggered, "Here we have not allocated anything");
 
-                var bytes = new Byte[100];
+                var bytes = new Byte[99];
+                Thread.Sleep(sleepTime);
+                Assert.False(triggered, "No GC should have been triggered");
             } finally {
                 GC2.EndNoGCRegion();
             }
@@ -27,10 +43,11 @@ namespace LNativeMemory.Tests {
                 var triggered = false;
                 var succeeded = GC2.TryStartNoGCRegion(100, () => triggered = true);
                 Assert.True(succeeded);
+                Assert.False(triggered, "No GC before uber allocation");
 
                 var bytes = new Byte[1001];
-                Thread.Sleep(200);
-                Assert.True(triggered);
+                Thread.Sleep(sleepTime);
+                Assert.True(triggered, "No Gc Should have been triggered");
             } finally {
                 GC2.EndNoGCRegion();
             }
@@ -40,17 +57,7 @@ namespace LNativeMemory.Tests {
         public void CanCallMultipleTimes() {
 
             for (int i = 0; i < 3; i++) {
-                try {
-                    var triggered = false;
-                    var succeeded = GC2.TryStartNoGCRegion(100, () => triggered = true);
-                    Assert.True(succeeded);
-
-                    var bytes = new Byte[1001];
-                    Thread.Sleep(200);
-                    Assert.True(triggered);
-                } finally {
-                    GC2.EndNoGCRegion();
-                }
+                NoAllocationToLimit();
             }
         }
     }

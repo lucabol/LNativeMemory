@@ -5,7 +5,7 @@ using System.Runtime.InteropServices;
 
 namespace LNativeMemory {
 
-    public unsafe class Arena {
+    public unsafe class Arena: IAllocator {
         protected void* _start;
         private void* _nextAlloc;
         private uint _size;
@@ -91,9 +91,16 @@ namespace LNativeMemory {
         public uint TotalBytes => _size;
     }
 
-    public unsafe class NativeArena: Arena, IDisposable {
+    public unsafe class NativeArena: IDisposable {
 
-        public NativeArena(int totalBytes): base(new Span<byte>(Marshal.AllocHGlobal(totalBytes).ToPointer(), totalBytes)) {
+        private IntPtr _start;
+        public Arena Arena { get; }
+
+        public NativeArena(int totalBytes) {
+            Trace.Assert(totalBytes > 0);
+
+            _start = Marshal.AllocHGlobal(totalBytes);
+            Arena = new Arena(new Span<byte>(_start.ToPointer(), totalBytes));
         }
 
         #region IDisposable Support
@@ -102,7 +109,7 @@ namespace LNativeMemory {
         }
 
         public void Dispose() {
-            Marshal.FreeHGlobal((IntPtr)_start);
+            Marshal.FreeHGlobal(_start);
             GC.SuppressFinalize(this);
         }
         #endregion
