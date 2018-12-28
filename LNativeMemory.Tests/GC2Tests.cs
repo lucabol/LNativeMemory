@@ -22,12 +22,12 @@ namespace LNativeMemory.Tests {
         public void NoAllocationToLimit() {
             try {
                 var triggered = false;
-                var succeeded = GC2.TryStartNoGCRegion(1_000, () => {
+                var succeeded = GC2.TryStartNoGCRegion(10_000, () => {
                     triggered = true;
                 });
                 Assert.True(succeeded, "Not entered NoGC Region");
                 Thread.Sleep(sleepTime);
-                Assert.False(triggered, "Here we have not allocated anything");
+                Assert.True(triggered, "Here we have not allocated anything");
 
                 var bytes = new Byte[99];
                 Thread.Sleep(sleepTime);
