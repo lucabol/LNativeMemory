@@ -6,10 +6,12 @@ using System.Threading;
 using Xunit;
 using Xunit.Abstractions;
 
-namespace LNativeMemory.Tests {
+namespace LNativeMemory.Tests
+{
 
     // XUnit executes all tests in a class sequentially, so no problem with multithreading calls to GC
-    public class GC2Tests {
+    public class GC2Tests
+    {
 
         const int sleepTime = 200;
         // 32 bits workstation GC ephemeral segment size
@@ -21,8 +23,10 @@ namespace LNativeMemory.Tests {
         public GC2Tests(ITestOutputHelper output) => this.output = output;
 
         [Fact]
-        public void NoAllocationToLimit() {
-            try {
+        public void NoAllocationToLimit()
+        {
+            try
+            {
                 var triggered = false;
                 var succeeded = GC2.TryStartNoGCRegion(totalBytes, () => triggered = true);
                 Assert.True(succeeded);
@@ -32,14 +36,18 @@ namespace LNativeMemory.Tests {
                 var bytes = new byte[99];
                 Thread.Sleep(sleepTime);
                 Assert.False(triggered);
-            } finally {
+            }
+            finally
+            {
                 GC2.EndNoGCRegion();
             }
         }
 
         [Fact]
-        public void AllocatingOverLimitTriggersTheAction() {
-            try {
+        public void AllocatingOverLimitTriggersTheAction()
+        {
+            try
+            {
                 var triggered = false;
                 var succeeded = GC2.TryStartNoGCRegion(totalBytes, () => triggered = true);
                 Assert.True(succeeded);
@@ -49,15 +57,19 @@ namespace LNativeMemory.Tests {
 
                 Thread.Sleep(sleepTime);
                 Assert.True(triggered);
-            } finally {
+            }
+            finally
+            {
                 GC2.EndNoGCRegion();
             }
         }
 
         [Fact]
-        public void CanCallMultipleTimes() {
+        public void CanCallMultipleTimes()
+        {
 
-            for (int i = 0; i < 3; i++) {
+            for (int i = 0; i < 3; i++)
+            {
                 NoAllocationToLimit();
             }
         }

@@ -5,10 +5,12 @@ using System.Runtime.InteropServices;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace LNativeMemory.Tests {
+namespace LNativeMemory.Tests
+{
 
     [StructLayout(LayoutKind.Auto)]
-    struct CStruct {
+    struct CStruct
+    {
         public int X;
         public float Y;
         bool b;
@@ -16,11 +18,13 @@ namespace LNativeMemory.Tests {
         Decimal dec;
     }
 
-    public class Tests {
+    public class Tests
+    {
 
         private const int bufferSize = 10_000;
 
-        public static IEnumerable<object[]> GetAllocator(int numTests) {
+        public static IEnumerable<object[]> GetAllocator(int numTests)
+        {
 
             var allData = new List<object[]> {
                 new object[] { new NativeArena(bufferSize).Arena }
@@ -31,7 +35,8 @@ namespace LNativeMemory.Tests {
 
         [Theory]
         [MemberData(nameof(GetAllocator), parameters: 1)]
-        public void CanAllocateStruct<T>(T ar) where T : IAllocator {
+        public void CanAllocateStruct<T>(T ar) where T : IAllocator
+        {
             ref var s = ref ar.Alloc<CStruct>();
             Assert.Equal(0, s.X);
             s.X = 3;
@@ -46,14 +51,16 @@ namespace LNativeMemory.Tests {
 
         [Theory]
         [MemberData(nameof(GetAllocator), parameters: 1)]
-        public void CanAllocatePrimitiveTypes<T>(T ar) where T : IAllocator {
+        public void CanAllocatePrimitiveTypes<T>(T ar) where T : IAllocator
+        {
             var ispan = ar.Alloc<int>(10);
             var fspan = ar.Alloc<float>(10);
             var dspan = ar.Alloc<double>(10);
             var bspan = ar.Alloc<bool>(10);
             var despan = ar.Alloc<Decimal>(10);
 
-            for (int i = 0; i < 10; i++) {
+            for (int i = 0; i < 10; i++)
+            {
                 Assert.Equal(0, ispan[i]);
                 Assert.Equal(0.0, fspan[i]);
                 Assert.Equal(0.0, dspan[i]);
@@ -76,7 +83,8 @@ namespace LNativeMemory.Tests {
 
         [Theory]
         [MemberData(nameof(GetAllocator), parameters: 1)]
-        public void CanInitializeAndAllocate<T>(T ar) where T : IAllocator {
+        public void CanInitializeAndAllocate<T>(T ar) where T : IAllocator
+        {
             ref var s = ref ar.Alloc(new CStruct { X = 6 });
             Assert.Equal(6, s.X);
 
@@ -86,9 +94,11 @@ namespace LNativeMemory.Tests {
 
         [Theory]
         [MemberData(nameof(GetAllocator), parameters: 1)]
-        public void ThrowsExceptionWhenMemoryIsFull<T>(T ar) where T : IAllocator {
+        public void ThrowsExceptionWhenMemoryIsFull<T>(T ar) where T : IAllocator
+        {
             var i = 0;
-            Assert.Throws<OutOfMemoryException>(() => {
+            Assert.Throws<OutOfMemoryException>(() =>
+            {
                 while (i < bufferSize + 1) { ar.Alloc<byte>(); i++; }
                 return 0;
             });
@@ -97,15 +107,17 @@ namespace LNativeMemory.Tests {
 
         [Theory]
         [MemberData(nameof(GetAllocator), parameters: 1)]
-        public void GeCorrectRemainingSize<T>(T ar) where T : IAllocator {
-                ar.Alloc<float>();
-                Assert.Equal((uint)(bufferSize - sizeof(float)), ar.BytesLeft);
-                ar.Alloc<decimal>(10);
-                Assert.Equal((uint)(bufferSize - sizeof(float) - sizeof(decimal) * 10), ar.BytesLeft);
+        public void GeCorrectRemainingSize<T>(T ar) where T : IAllocator
+        {
+            ar.Alloc<float>();
+            Assert.Equal((uint)(bufferSize - sizeof(float)), ar.BytesLeft);
+            ar.Alloc<decimal>(10);
+            Assert.Equal((uint)(bufferSize - sizeof(float) - sizeof(decimal) * 10), ar.BytesLeft);
         }
 
         [Fact]
-        public unsafe void CanUseStackMemory() {
+        public unsafe void CanUseStackMemory()
+        {
             var buffer = stackalloc byte[100];
 
             var ar = new Arena(new Span<byte>(&buffer[0], 100));
@@ -122,7 +134,8 @@ namespace LNativeMemory.Tests {
 
         [Theory]
         [MemberData(nameof(GetAllocator), parameters: 1)]
-        public void CanFreeJustLastAllocated<T>(T ar) where T : IAllocator {
+        public void CanFreeJustLastAllocated<T>(T ar) where T : IAllocator
+        {
             ref var c = ref ar.Alloc<CStruct>();
             ref var d = ref ar.Alloc<CStruct>();
 
@@ -147,14 +160,15 @@ namespace LNativeMemory.Tests {
         }
         [Theory]
         [MemberData(nameof(GetAllocator), parameters: 1)]
-        public void ResetWorks<T>(T ar) where T : IAllocator {
+        public void ResetWorks<T>(T ar) where T : IAllocator
+        {
             ar.Alloc<CStruct>(20);
             Assert.True(ar.BytesLeft < ar.TotalBytes);
             ar.Reset();
 
-            Assert.Equal(bufferSize, (int) ar.BytesLeft);
+            Assert.Equal(bufferSize, (int)ar.BytesLeft);
             var span = ar.Alloc<CStruct>(20);
             Assert.Equal(0, span[0].X);
         }
-     }
+    }
 }
