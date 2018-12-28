@@ -4,9 +4,8 @@
 
     internal sealed class GcEventListener : EventListener {
         Action _action;
-        int _gcNumber = 0; // One GC is performed before starting NoGC region, must skip first one.
+        bool _isWarm = false; // One GC is performed before starting NoGC region, must skip first one.
         bool _started = false;
-        const int warmupGC = 4;
 
         internal void Start() { _started = true; }
 
@@ -21,10 +20,10 @@
 
         protected override void OnEventWritten(EventWrittenEventArgs eventData) {
             var eventName = eventData.EventName;
-            if (_started && eventName == "GCStart_V2" && _gcNumber < warmupGC) {
-                _gcNumber += 1;
-            } else if (_started && eventName == "GCStart_V2" && _action != null) {
+            if (_started && _isWarm && eventName == "GCStart_V2") {
                 _action();
+            } else if (_started && !_isWarm && eventName == "GCStart_V2") {
+                _isWarm = true;
             } else {
                 // Do nothing. It's not one of the condition above.
             }

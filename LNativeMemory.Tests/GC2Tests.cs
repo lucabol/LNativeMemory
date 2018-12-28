@@ -8,12 +8,14 @@ using Xunit.Abstractions;
 
 namespace LNativeMemory.Tests {
 
-
-
-    // XUnit executes all tests in a class sequentially, so nothing to do here
+    // XUnit executes all tests in a class sequentially, so no problem with multithreading calls to GC
     public class GC2Tests {
 
         const int sleepTime = 200;
+        // 32 bits workstation GC ephemeral segment size
+        // (https://mattwarren.org/2016/08/16/Preventing-dotNET-Garbage-Collections-with-the-TryStartNoGCRegion-API/)
+        const int totalBytes = 16 * 1024 * 1024;
+
         private readonly ITestOutputHelper output;
 
         public GC2Tests(ITestOutputHelper output) => this.output = output;
@@ -22,16 +24,14 @@ namespace LNativeMemory.Tests {
         public void NoAllocationToLimit() {
             try {
                 var triggered = false;
-                var succeeded = GC2.TryStartNoGCRegion(10_000, () => {
-                    triggered = true;
-                });
-                Assert.True(succeeded, "Not entered NoGC Region");
+                var succeeded = GC2.TryStartNoGCRegion(totalBytes, () => triggered = true);
+                Assert.True(succeeded);
                 Thread.Sleep(sleepTime);
-                Assert.True(triggered, "Here we have not allocated anything");
+                Assert.False(triggered);
 
-                var bytes = new Byte[99];
+                var bytes = new byte[99];
                 Thread.Sleep(sleepTime);
-                Assert.False(triggered, "No GC should have been triggered");
+                Assert.False(triggered);
             } finally {
                 GC2.EndNoGCRegion();
             }
@@ -41,13 +41,14 @@ namespace LNativeMemory.Tests {
         public void AllocatingOverLimitTriggersTheAction() {
             try {
                 var triggered = false;
-                var succeeded = GC2.TryStartNoGCRegion(100, () => triggered = true);
+                var succeeded = GC2.TryStartNoGCRegion(totalBytes, () => triggered = true);
                 Assert.True(succeeded);
-                Assert.False(triggered, "No GC before uber allocation");
+                Assert.False(triggered);
 
-                var bytes = new Byte[1001];
+                for (var i = 0; i < 3; i++) { var k = new byte[totalBytes]; }
+
                 Thread.Sleep(sleepTime);
-                Assert.True(triggered, "No Gc Should have been triggered");
+                Assert.True(triggered);
             } finally {
                 GC2.EndNoGCRegion();
             }
