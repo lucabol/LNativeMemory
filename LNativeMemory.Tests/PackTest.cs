@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Runtime.InteropServices;
 using Xunit;
 
 
@@ -94,5 +95,46 @@ namespace LNativeMemory.Tests
             Assert.Equal(16, sizeof(LNativeMemory.Tests.SPSC));
             Assert.Equal(4, sizeof(LNativeMemory.Tests.SSC));
         }
+
+        [Fact]
+        unsafe static void MallocIs16Aligned()
+        {
+            var r = new Random();
+            for (int i = 0; i < 100; i++)
+            {
+                var b = Marshal.AllocHGlobal(r.Next(100, 500));
+                Assert.Equal(0, b.ToInt64() % 16);
+            }
+        }
+
+        [Fact]
+        unsafe static void AligningAlgosWork()
+        {
+            var alignments = new int[] { 1, 2, 4, 8, 16, 32, 64 };
+            var r = new Random();
+
+            var aFuncs = new Func<long, long, long>[]
+            {
+                (m,a) => (m + a - 1) / a * a,   // Works for all alignment values
+                (m,a) => (m + a - 1) & ~ (a - 1) // Works for power of 2 alignment values, likely quicker
+            };
+
+            foreach (var a in alignments)
+            {
+                for (int i = 0; i < a - 1; i++)
+                {
+                    var m = Marshal.AllocHGlobal(r.Next(100, 500)).ToInt64();
+                    m += i; // Misalign it by i values
+                    foreach (var f in aFuncs)
+                    {
+                        var am = f(m, a);
+                        Assert.True(am >= m);    // It is after the aligned memory
+                        Assert.Equal(0, am % a); // It is aligned to a
+                    }
+                }
+            }
+
+        }
+
     }
 }

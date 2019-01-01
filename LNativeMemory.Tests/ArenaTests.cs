@@ -134,32 +134,6 @@ namespace LNativeMemory.Tests
 
         [Theory]
         [MemberData(nameof(GetAllocator), parameters: 1)]
-        public void CanFreeJustLastAllocated<T>(T ar) where T : IAllocator
-        {
-            ref var c = ref ar.Alloc<CStruct>();
-            ref var d = ref ar.Alloc<CStruct>();
-
-            var initialBytes = ar.BytesLeft;
-            ar.Free(ref c);
-            var currentBytes = ar.BytesLeft;
-            Assert.Equal(initialBytes, currentBytes); // Nothing is freed
-            ar.Free(ref d);
-            currentBytes = ar.BytesLeft;
-            Assert.True(currentBytes > initialBytes); // Here we freed some memory
-            ar.Free(ref c);
-            Assert.True(ar.BytesLeft > currentBytes); // Freed again, aka inverse order works
-
-
-            var sp1 = ar.Alloc<CStruct>(10);
-            var sp2 = ar.Alloc<CStruct>(10);
-            initialBytes = ar.BytesLeft;
-            ar.Free(sp1);
-            Assert.Equal(initialBytes, ar.BytesLeft); // Nothing is freed
-            ar.Free(sp2);
-            Assert.True(ar.BytesLeft > initialBytes); // Here we freed some memory
-        }
-        [Theory]
-        [MemberData(nameof(GetAllocator), parameters: 1)]
         public void ResetWorks<T>(T ar) where T : IAllocator
         {
             ar.Alloc<CStruct>(20);

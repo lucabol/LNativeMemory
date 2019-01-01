@@ -13,6 +13,8 @@ namespace LNativeMemory
         private uint _size;
         private void* _endMemory;
 
+        public const int DefaultAlignment = 16;
+
         public Arena(Span<byte> memory)
         {
             _start = _nextAlloc = Unsafe.AsPointer<byte>(ref memory[0]);
@@ -21,14 +23,12 @@ namespace LNativeMemory
             Unsafe.InitBlock(_start, 0, _size);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void* Align(void* mem, int alignment) => (void*)(((ulong)mem + (ulong)alignment - 1) & ~((ulong)alignment - 1));
+
         public ref T Alloc<T>() where T : unmanaged
         {
             var sizeType = Unsafe.SizeOf<T>();
-            var endAlloc = Unsafe.Add<T>(_nextAlloc, 1);
-
-            if (endAlloc > _endMemory) throw new OutOfMemoryException
-                    ($"Trying to allocate {sizeType} bytes for a type {typeof(T).FullName}.\nStart: {(int)_start}\nNextAlloc: {(int)_nextAlloc}\nSize:{(int)_size}");
-
             return ref FastAlloc<T>(sizeType);
         }
 
@@ -50,15 +50,14 @@ namespace LNativeMemory
         public Span<T> Alloc<T>(int n) where T : unmanaged
         {
             var sizeArray = Unsafe.SizeOf<T>() * n;
-            var endAlloc = Unsafe.Add<T>(_nextAlloc, n);
-            if (endAlloc > _endMemory) throw new OutOfMemoryException
-                    ($"Trying to allocate {sizeArray} bytes for an array {typeof(T).FullName}[{n}].\nStart: {(int)_start}\nNextAlloc: {(int)_nextAlloc}\nSize:{_size}");
 
             return FastAlloc<T>(n, sizeArray);
         }
 
         public ref T FastAlloc<T>(int sizeType) where T : unmanaged
         {
+            _nextAlloc = Align(_nextAlloc, DefaultAlignment);
+
             var endAlloc = Unsafe.Add<T>(_nextAlloc, 1);
             Debug.Assert(endAlloc <= _endMemory,
                     $"Trying to allocate {sizeType} bytes for a type {typeof(T).FullName}.\nStart: {(int)_start}\nNextAlloc: {(int)_nextAlloc}\nSize:{(int)_size}");
@@ -70,42 +69,14 @@ namespace LNativeMemory
 
         public Span<T> FastAlloc<T>(int n, int sizeArrayInBytes) where T : unmanaged
         {
+            _nextAlloc = Align(_nextAlloc, DefaultAlignment);
+
             Debug.Assert((byte*)_nextAlloc + sizeArrayInBytes <= _endMemory,
                     $"Trying to allocate {sizeArrayInBytes} bytes for an array {typeof(T).FullName}[{n}].\nStart: {(int)_start}\nNextAlloc: {(int)_nextAlloc}\nSize:{_size}");
 
             var ptr = _nextAlloc;
             _nextAlloc = (byte*)_nextAlloc + sizeArrayInBytes;
             return new Span<T>(ptr, n);
-        }
-
-        public void Free<T>(ref T item) where T : unmanaged
-        {
-            FastFree(ref item, Unsafe.SizeOf<T>());
-        }
-
-        public unsafe void FastFree<T>(ref T item, int size) where T : unmanaged
-        {
-            byte* addr = (byte*)Unsafe.AsPointer(ref item);
-            if (addr + size == _nextAlloc)
-            {
-                Unsafe.InitBlock(addr, 0, (uint)size);
-                _nextAlloc = addr;
-            }
-        }
-
-        public void Free<T>(Span<T> span) where T : unmanaged
-        {
-            FastFree(span, sizeof(T));
-        }
-
-        public unsafe void FastFree<T>(Span<T> span, int size) where T : unmanaged
-        {
-            byte* addr = (byte*)Unsafe.AsPointer(ref span[0]);
-            if (addr + size * span.Length == _nextAlloc)
-            {
-                Unsafe.InitBlock(addr, 0, (uint)size);
-                _nextAlloc = addr;
-            }
         }
 
         public void Reset()

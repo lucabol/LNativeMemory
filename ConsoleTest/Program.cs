@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Diagnostics.Tracing;
 using static System.Console;
 using System.Threading;
+using System.Runtime.InteropServices;
 
 namespace LNativeMemory
 {
@@ -82,11 +83,8 @@ namespace LNativeMemory
 
 class Program
 {
-
-
-    static void Main(string[] args)
+    static void TestGC()
     {
-
         var sleep = 200;
 
         try
@@ -108,5 +106,21 @@ class Program
         {
             LNativeMemory.GC2.EndNoGCRegion();
         }
+
+    }
+
+    unsafe static void TestAlignAlgos()
+    {
+        var r = new Random();
+        for (int i = 0; i < 100; i++)
+        {
+            var b = Marshal.AllocHGlobal(r.Next(100,500));
+            Trace.Assert(0 == b.ToInt64() % 16);
+        }
+    }
+
+    static void Main(string[] args)
+    {
+        TestAlignAlgos();
     }
 }
