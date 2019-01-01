@@ -8,6 +8,7 @@
         Action _action;
         bool _isWarm = false; // One GC is performed before starting NoGC region, must skip first one.
         bool _started = false;
+        EventSource _eventSource;
 
         internal void Start() { _started = true; }
 
@@ -19,6 +20,7 @@
         {
             if (eventSource.Name.Equals("Microsoft-Windows-DotNETRuntime"))
             {
+                _eventSource = eventSource;
                 EnableEvents(eventSource, EventLevel.Verbose, (EventKeywords)(-1));
             }
         }
@@ -39,7 +41,11 @@
                 // Do nothing. It's not one of the condition above.
             }
         }
-        public override void Dispose() { _action = null; base.Dispose(); }
+        public override void Dispose() {
+            _action = null;
+            DisableEvents(_eventSource);
+            base.Dispose();
+        }
     }
 
     public static class GC2

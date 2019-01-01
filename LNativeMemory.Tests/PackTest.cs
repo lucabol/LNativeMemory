@@ -72,6 +72,7 @@ namespace LNativeMemory.Tests
         [Fact]
         public unsafe void TestPackingOfStruct()
         {
+            // Size of all types that satisfies the 'unmanaged' constraint
             Assert.Equal(1, sizeof(byte));
             Assert.Equal(2, sizeof(char));
             Assert.Equal(2, sizeof(short));
