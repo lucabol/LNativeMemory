@@ -24,16 +24,9 @@ namespace LNativeMemory.Tests
 
         private const int bufferSize = 10_000;
 
-        private DebugAssertUnitTestTraceListener _traceListener;
-        private TraceListenerCollection _originalTraceListeners;
-
         public Tests()
         {
-            // Save and clear original trace listeners, add custom unit test trace listener.
-            _traceListener = new DebugAssertUnitTestTraceListener();
-            _originalTraceListeners = Trace.Listeners;
-            Trace.Listeners.Clear();
-            Trace.Listeners.Add(_traceListener);
+
         }
 
         public static IEnumerable<object[]> GetAllocator(int numTests)
@@ -109,25 +102,6 @@ namespace LNativeMemory.Tests
 
         [Theory]
         [MemberData(nameof(GetAllocator), parameters: 1)]
-        public void AssertsWhenMemoryIsFull<T>(T ar) where T : IAllocator
-        {
-            ar.AllocSpan<byte>(bufferSize + 10);
-
-#if DEBUG // Test assertions using https://stackoverflow.com/questions/409955/best-practice-for-debug-asserts-during-unit-testing
-            if (_traceListener.AssertionFailures.Count > 0)
-            {
-                _traceListener.ClearAssertions();
-                _traceListener.AllowedFailures.Clear();
-                Assert.True(true);
-            } else
-            {
-                Assert.True(false);
-            }
-#endif
-        }
-
-        [Theory]
-        [MemberData(nameof(GetAllocator), parameters: 1)]
         public void GeApproxForAlignmentCorrectRemainingSize<T>(T ar) where T : IAllocator
         {
             // Variable alignment requires these tests not to be simple equalities, approx so that remaining bytes are in a reasonable range
@@ -172,8 +146,7 @@ namespace LNativeMemory.Tests
 
         public void Dispose()
         {
-            Trace.Listeners.Clear();
-            Trace.Listeners.AddRange(_originalTraceListeners);
+
         }
     }
 }
