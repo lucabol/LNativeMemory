@@ -13,8 +13,6 @@ namespace LNativeMemory
         private uint _size;
         private void* _endMemory;
 
-        public const int DefaultAlignment = 16;
-
         public Arena(Span<byte> memory)
         {
             _start = _nextAlloc = Unsafe.AsPointer<byte>(ref memory[0]);
@@ -34,7 +32,7 @@ namespace LNativeMemory
 
             if (sizeOfType == 0) sizeOfType = sizeof(T);
 
-            _nextAlloc = Align(_nextAlloc, DefaultAlignment);
+            _nextAlloc = Align(_nextAlloc, alignment);
             Debug.Assert((ulong)_nextAlloc % (ulong) alignment == 0);
 
             Debug.Assert((byte*)_nextAlloc + sizeOfType <= _endMemory,
@@ -56,7 +54,7 @@ namespace LNativeMemory
             if (sizeOfType == 0) sizeOfType = sizeof(T);
             var sizeOfArray = sizeOfType * n;
 
-            _nextAlloc = Align(_nextAlloc, DefaultAlignment);
+            _nextAlloc = Align(_nextAlloc, alignment);
             Debug.Assert((ulong)_nextAlloc % (ulong)alignment == 0);
 
             Debug.Assert((byte*)_nextAlloc + sizeOfArray <= _endMemory,

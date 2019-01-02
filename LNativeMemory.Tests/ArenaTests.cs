@@ -5,6 +5,7 @@ using System.Runtime.InteropServices;
 using System.Collections.Generic;
 using System.Linq;
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
 
 namespace LNativeMemory.Tests
 {
@@ -86,6 +87,23 @@ namespace LNativeMemory.Tests
                 Assert.True(bspan[i]);
             }
         }
+
+        [Theory]
+        [MemberData(nameof(GetAllocator), parameters: 1)]
+        public unsafe void AlignsCorrectly<T>(T ar) where T : IAllocator
+        {
+            ar.Alloc<byte>(); // tries to screw the alignment
+            ref var de = ref ar.Alloc<decimal>();
+            Assert.Equal(0, (long)Unsafe.AsPointer(ref de) % 8);
+            ar.Alloc<byte>();
+
+            ref var d = ref ar.Alloc<double>();
+            Assert.Equal(0, (long)Unsafe.AsPointer(ref de) % 4);
+
+            var cacheLine = ar.AllocSpan<double>(10, alignment: 64);
+            Assert.Equal(0, (long)Unsafe.AsPointer(ref cacheLine[0]) % 64);
+        }
+
 
         [Theory]
         [MemberData(nameof(GetAllocator), parameters: 1)]
