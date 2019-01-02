@@ -78,4 +78,21 @@
 
         }
     }
+
+    public class NoGCRegion: IDisposable
+    {
+        static readonly Action defaultErrorF = () => throw new OutOfMemoryException();
+
+        public NoGCRegion(int totalSize, Action actionWhenAllocatedMore)
+        {
+            var succeeded = GC2.TryStartNoGCRegion(totalSize, actionWhenAllocatedMore);
+            if (!succeeded)
+                throw new Exception("Cannot enter NoGCRegion");
+        }
+
+        public NoGCRegion(int totalSize) : this(totalSize, defaultErrorF) { }
+        public NoGCRegion() : this(16 * 1024 * 1024, defaultErrorF) { }
+
+        public void Dispose() => GC2.EndNoGCRegion();
+    }
 }

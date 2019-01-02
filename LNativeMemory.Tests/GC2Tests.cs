@@ -13,7 +13,7 @@ namespace LNativeMemory.Tests
     public class GC2Tests
     {
 
-        const int sleepTime = 200;
+        const int sleepTime = 50;
         // 32 bits workstation GC ephemeral segment size
         // (https://mattwarren.org/2016/08/16/Preventing-dotNET-Garbage-Collections-with-the-TryStartNoGCRegion-API/)
         const int totalBytes = 16 * 1024 * 1024;
@@ -71,6 +71,19 @@ namespace LNativeMemory.Tests
             for (int i = 0; i < 3; i++)
             {
                 NoAllocationToLimit();
+            }
+        }
+
+        [Fact]
+        public void CanUseNoGCRegion()
+        {
+            var triggered = false;
+
+            using (new NoGCRegion(totalBytes, () => triggered = true))
+            {
+                for (var i = 0; i < 3; i++) { var k = new byte[totalBytes]; }
+                Thread.Sleep(sleepTime);
+                Assert.True(triggered);
             }
         }
     }
