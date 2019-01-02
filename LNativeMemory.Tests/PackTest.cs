@@ -5,6 +5,7 @@ using Xunit;
 
 namespace LNativeMemory.Tests
 {
+#pragma warning disable 0169 // Unused variables in struct
     unsafe struct SPCL
     {
         byte* p;
@@ -67,6 +68,7 @@ namespace LNativeMemory.Tests
         foo12_inner inner;
         char c;
     };
+#pragma warning restore 0169
 
     public class PackTest
     {
@@ -94,6 +96,16 @@ namespace LNativeMemory.Tests
             Assert.Equal(24, sizeof(LNativeMemory.Tests.SPCL));
             Assert.Equal(16, sizeof(LNativeMemory.Tests.SPSC));
             Assert.Equal(4, sizeof(LNativeMemory.Tests.SSC));
+
+
+            Assert.Equal(24, Marshal.SizeOf<LNativeMemory.Tests.SCFBPL>());
+            Assert.Equal(24, Marshal.SizeOf<LNativeMemory.Tests.SCIPS>());
+            Assert.Equal(24, Marshal.SizeOf<LNativeMemory.Tests.SCPS>());
+            Assert.Equal(16, Marshal.SizeOf<LNativeMemory.Tests.SPC>());
+            Assert.Equal(24, Marshal.SizeOf<LNativeMemory.Tests.SPCL>());
+            Assert.Equal(16, Marshal.SizeOf<LNativeMemory.Tests.SPSC>());
+            Assert.Equal(4, Marshal.SizeOf<LNativeMemory.Tests.SSC>());
+
         }
 
         [Fact]

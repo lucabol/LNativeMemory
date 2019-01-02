@@ -4,6 +4,7 @@ using LNativeMemory;
 using System.Runtime.InteropServices;
 using System.Collections.Generic;
 using System.Linq;
+using System.Diagnostics;
 
 namespace LNativeMemory.Tests
 {
@@ -18,10 +19,22 @@ namespace LNativeMemory.Tests
         Decimal dec;
     }
 
-    public class Tests
+    public class Tests : IDisposable
     {
 
         private const int bufferSize = 10_000;
+
+        private DebugAssertUnitTestTraceListener _traceListener;
+        private TraceListenerCollection _originalTraceListeners;
+
+        public Tests()
+        {
+            // Save and clear original trace listeners, add custom unit test trace listener.
+            _traceListener = new DebugAssertUnitTestTraceListener();
+            _originalTraceListeners = Trace.Listeners;
+            Trace.Listeners.Clear();
+            Trace.Listeners.Add(_traceListener);
+        }
 
         public static IEnumerable<object[]> GetAllocator(int numTests)
         {
@@ -43,7 +56,7 @@ namespace LNativeMemory.Tests
             Assert.Equal(3, s.X);
 
             var n = 100;
-            var span = ar.Alloc<CStruct>(n);
+            var span = ar.AllocSpan<CStruct>(n);
             foreach (var c in span) Assert.Equal(0, c.X);
             for (int i = 0; i < n; i++) span[i].X = 3;
             foreach (var c in span) Assert.Equal(3, c.X);
@@ -53,11 +66,11 @@ namespace LNativeMemory.Tests
         [MemberData(nameof(GetAllocator), parameters: 1)]
         public void CanAllocatePrimitiveTypes<T>(T ar) where T : IAllocator
         {
-            var ispan = ar.Alloc<int>(10);
-            var fspan = ar.Alloc<float>(10);
-            var dspan = ar.Alloc<double>(10);
-            var bspan = ar.Alloc<bool>(10);
-            var despan = ar.Alloc<Decimal>(10);
+            var ispan = ar.AllocSpan<int>(10);
+            var fspan = ar.AllocSpan<float>(10);
+            var dspan = ar.AllocSpan<double>(10);
+            var bspan = ar.AllocSpan<bool>(10);
+            var despan = ar.AllocSpan<Decimal>(10);
 
             for (int i = 0; i < 10; i++)
             {
@@ -85,34 +98,46 @@ namespace LNativeMemory.Tests
         [MemberData(nameof(GetAllocator), parameters: 1)]
         public void CanInitializeAndAllocate<T>(T ar) where T : IAllocator
         {
-            ref var s = ref ar.Alloc(new CStruct { X = 6 });
+            ref var s = ref ar.Alloc(what: new CStruct { X = 6 });
             Assert.Equal(6, s.X);
 
-            var span = ar.Alloc(10, new CStruct { X = 7 });
+            var span = ar.AllocSpan<CStruct>(10);
+            for (int i = 0; i < span.Length; i++) Assert.Equal(0, span[i].X);
+            for (int i = 0; i < span.Length; i++) span[i].X = 7;
             for (int i = 0; i < span.Length; i++) Assert.Equal(7, span[i].X);
         }
 
         [Theory]
         [MemberData(nameof(GetAllocator), parameters: 1)]
-        public void ThrowsExceptionWhenMemoryIsFull<T>(T ar) where T : IAllocator
+        public void AssertsWhenMemoryIsFull<T>(T ar) where T : IAllocator
         {
-            var i = 0;
-            Assert.Throws<OutOfMemoryException>(() =>
+            ar.AllocSpan<byte>(bufferSize + 10);
+
+#if DEBUG // Test assertions using https://stackoverflow.com/questions/409955/best-practice-for-debug-asserts-during-unit-testing
+            if (_traceListener.AssertionFailures.Count > 0)
             {
-                while (i < bufferSize + 1) { ar.Alloc<byte>(); i++; }
-                return 0;
-            });
-            Assert.Equal(bufferSize, i);
+                _traceListener.ClearAssertions();
+                _traceListener.AllowedFailures.Clear();
+                Assert.True(true);
+            } else
+            {
+                Assert.True(false);
+            }
+#endif
         }
 
         [Theory]
         [MemberData(nameof(GetAllocator), parameters: 1)]
-        public void GeCorrectRemainingSize<T>(T ar) where T : IAllocator
+        public void GeApproxForAlignmentCorrectRemainingSize<T>(T ar) where T : IAllocator
         {
+            // Variable alignment requires these tests not to be simple equalities, approx so that remaining bytes are in a reasonable range
             ar.Alloc<float>();
-            Assert.Equal((uint)(bufferSize - sizeof(float)), ar.BytesLeft);
-            ar.Alloc<decimal>(10);
-            Assert.Equal((uint)(bufferSize - sizeof(float) - sizeof(decimal) * 10), ar.BytesLeft);
+            Assert.True(ar.BytesLeft <= (uint)(bufferSize - sizeof(float)));
+            Assert.True(ar.BytesLeft > (uint)(bufferSize - sizeof(float) * 2));
+
+            ar.AllocSpan<decimal>(10);
+            Assert.True(ar.BytesLeft <= (uint)(bufferSize - sizeof(float) - sizeof(decimal) * 10));
+            Assert.True(ar.BytesLeft > (uint)(bufferSize - sizeof(float) * 2 - sizeof(decimal) * 10 * 2));
         }
 
         [Fact]
@@ -121,13 +146,13 @@ namespace LNativeMemory.Tests
             var buffer = stackalloc byte[100];
 
             var ar = new Arena(new Span<byte>(&buffer[0], 100));
-            var k = ar.Alloc<double>(2);
+            var k = ar.AllocSpan<double>(2);
             Assert.Equal(0, k[0]);
             k[0] = 3;
             Assert.Equal(2, k.Length);
 
             ar = new Arena(new Span<byte>(&buffer[0], 100));
-            k = ar.Alloc<double>(2);
+            k = ar.AllocSpan<double>(2);
             Assert.Equal(0, k[0]);
             Assert.Equal(2, k.Length);
         }
@@ -136,13 +161,19 @@ namespace LNativeMemory.Tests
         [MemberData(nameof(GetAllocator), parameters: 1)]
         public void ResetWorks<T>(T ar) where T : IAllocator
         {
-            ar.Alloc<CStruct>(20);
+            ar.AllocSpan<CStruct>(20);
             Assert.True(ar.BytesLeft < ar.TotalBytes);
             ar.Reset();
 
             Assert.Equal(bufferSize, (int)ar.BytesLeft);
-            var span = ar.Alloc<CStruct>(20);
+            var span = ar.AllocSpan<CStruct>(20);
             Assert.Equal(0, span[0].X);
+        }
+
+        public void Dispose()
+        {
+            Trace.Listeners.Clear();
+            Trace.Listeners.AddRange(_originalTraceListeners);
         }
     }
 }
