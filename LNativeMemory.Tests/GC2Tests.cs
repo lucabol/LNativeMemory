@@ -1,5 +1,4 @@
 ﻿
-using Xunit;
 /**
 Stopping Garbage Collection in .NET Core 3.0
 ===========================================
@@ -43,6 +42,7 @@ The tests
 
 Let's start by looking at how you use it.
 **/
+using Xunit;
 using System.Threading;
 
 namespace LNativeMemory.Tests
