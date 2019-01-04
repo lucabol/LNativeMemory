@@ -10,6 +10,7 @@ using System.Runtime.CompilerServices;
 namespace LNativeMemory.Tests
 {
 
+#pragma warning disable CA1823
     [StructLayout(LayoutKind.Auto)]
     struct CStruct
     {
@@ -19,13 +20,14 @@ namespace LNativeMemory.Tests
         double d;
         Decimal dec;
     }
+#pragma warning restore CA1823
 
-    public class Tests : IDisposable
+    public sealed class MyTests : IDisposable
     {
 
         private const int bufferSize = 10_000;
 
-        public Tests()
+        public MyTests()
         {
 
         }
@@ -69,8 +71,8 @@ namespace LNativeMemory.Tests
             for (int i = 0; i < 10; i++)
             {
                 Assert.Equal(0, ispan[i]);
-                Assert.Equal(0.0, fspan[i]);
-                Assert.Equal(0.0, dspan[i]);
+                Assert.Equal(0, fspan[i]);
+                Assert.Equal(0, dspan[i]);
                 Assert.Equal(0, despan[i]);
                 Assert.False(bspan[i]);
 

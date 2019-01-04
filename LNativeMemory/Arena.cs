@@ -8,7 +8,7 @@ namespace LNativeMemory
 
     public unsafe class Arena : IAllocator
     {
-        protected void* _start;
+        private void* _start;
         private void* _nextAlloc;
         private uint _size;
         private void* _endMemory;
@@ -22,7 +22,7 @@ namespace LNativeMemory
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void* Align(void* mem, int alignment) => (void*)(((ulong)mem + (ulong)alignment - 1) & ~((ulong)alignment - 1));
+        public static void* Align(void* mem, int alignment) => (void*)(((ulong)mem + (ulong)alignment - 1) & ~((ulong)alignment - 1));
 
         public ref T Alloc<T>(int sizeOfType = 0, int alignment = 16, in T what = default(T)) where T : unmanaged
         {
@@ -36,7 +36,7 @@ namespace LNativeMemory
             Debug.Assert((ulong)_nextAlloc % (ulong) alignment == 0);
 
             Debug.Assert((byte*)_nextAlloc + sizeOfType <= _endMemory,
-                    $"Trying to allocate {sizeOfType} bytes for a type {typeof(T).FullName}.\nStart: {(int)_start}\nNextAlloc: {(int)_nextAlloc}\nSize:{(int)_size}");
+                    $"Trying to allocate {sizeOfType.ToString()} bytes for a type {typeof(T).FullName}.\nStart: {((int)_start).ToString()}\nNextAlloc: {((int)_nextAlloc).ToString()}\nSize:{((int)_size).ToString()}");
 
             var ptr = _nextAlloc;
             _nextAlloc = (byte*)_nextAlloc + sizeOfType;
@@ -58,7 +58,7 @@ namespace LNativeMemory
             Debug.Assert((ulong)_nextAlloc % (ulong)alignment == 0);
 
             Debug.Assert((byte*)_nextAlloc + sizeOfArray <= _endMemory,
-                    $"Trying to allocate {sizeOfType} bytes for a type {typeof(T).FullName}.\nStart: {(int)_start}\nNextAlloc: {(int)_nextAlloc}\nSize:{(int)_size}");
+                    $"Trying to allocate {sizeOfType.ToString()} bytes for a type {typeof(T).FullName}.\nStart: {((int)_start).ToString()}\nNextAlloc: {((int)_nextAlloc).ToString()}\nSize:{((int)_size).ToString()}");
 
             var ptr = _nextAlloc;
             _nextAlloc = (byte*)_nextAlloc + sizeOfArray;
@@ -77,7 +77,7 @@ namespace LNativeMemory
         public uint TotalBytes => _size;
     }
 
-    public unsafe class NativeArena : IDisposable
+    public unsafe sealed class NativeArena : IDisposable
     {
 
         private IntPtr _start;

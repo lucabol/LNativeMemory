@@ -1,126 +1,104 @@
-﻿using System;
-using System.Diagnostics;
-using System.Diagnostics.Tracing;
-using static System.Console;
+﻿/**
+Stopping Garbage Colletion in .NET Core 3.0
+===========================================
+
+Why
+---
+
+You have an application or a particular code path of your application that cannot take the pauses that GC creates.
+Typical examples are real time systems, tick by tick financial apps, embedded systems, etc ...
+For any normal kind of applications, *YOU DON'T NEED TO DO THIS*. You are likely to make your application run slower.
+If you have an hot path in your app (i.e. you are creating an editor with Intellisense), use the GC latency modes.
+Attempt to use the code below just under extreme circumstance as it is untested, error prone and wacky.
+You are problably better off waiting for an official way of doing it (i.e. when [this](https://github.com/dotnet/coreclr/issues/21750#issuecomment-450990011)
+is implemented)
+**/
 using System.Threading;
-using System.Runtime.InteropServices;
+using System.Runtime;
+using System.Diagnostics;
+using LNativeMemory;
 
-namespace LNativeMemory
+
+// XUnit executes all tests in a class sequentially, so no problem with multithreading calls to GC
+public class GC2Tests
 {
-    using System;
-    using System.Diagnostics.Tracing;
 
-    internal sealed class GcEventListener : EventListener
+    const int sleepTime = 100;
+    // 32 bits workstation GC ephemeral segment size
+    // (https://mattwarren.org/2016/08/16/Preventing-dotNET-Garbage-Collections-with-the-TryStartNoGCRegion-API/)
+    const int totalBytes = 16 * 1024 * 1024;
+    static bool triggered = false;
+
+
+    public void NoAllocationBeforeLimit()
     {
-        Action _action;
-        bool _isWarm = false; // One GC is performed before starting NoGC region, must skip first one.
-        bool _started = false;
-
-        internal void Start() { _started = true; }
-
-        internal GcEventListener(Action action)
-        {
-            _action = action;
-        }
-        protected override void OnEventSourceCreated(EventSource eventSource)
-        {
-            if (eventSource.Name.Equals("Microsoft-Windows-DotNETRuntime"))
-            {
-                EnableEvents(eventSource, EventLevel.Verbose, (EventKeywords)(-1));
-            }
-        }
-
-        protected override void OnEventWritten(EventWrittenEventArgs eventData)
-        {
-            var eventName = eventData.EventName;
-            if (_started && _isWarm && eventName == "GCStart_V2")
-            {
-                _action();
-            }
-            else if (_started && !_isWarm && eventName == "GCStart_V2")
-            {
-                _isWarm = true;
-            }
-            else
-            {
-                // Do nothing. It's not one of the condition above.
-            }
-        }
-        public override void Dispose() { _action = null; base.Dispose(); }
-    }
-
-    public static class GC2
-    {
-        static private GcEventListener _evListener;
-
-        public static bool TryStartNoGCRegion(long totalSize, Action actionWhenAllocatedMore)
-        {
-
-            _evListener = new GcEventListener(actionWhenAllocatedMore);
-            var succeeded = GC.TryStartNoGCRegion(totalSize, false);
-            _evListener.Start();
-            return succeeded;
-        }
-
-        public static void EndNoGCRegion()
-        {
-            try
-            {
-                if (_evListener != null)
-                {
-                    _evListener.Dispose();
-                    _evListener = null;
-                }
-                System.GC.EndNoGCRegion();
-            }
-            catch (InvalidOperationException)
-            {
-            }
-
-        }
-    }
-}
-
-class Program
-{
-    static void TestGC()
-    {
-        var sleep = 200;
-
         try
         {
-            var triggered = false;
-            var succeeded = LNativeMemory.GC2.TryStartNoGCRegion(16 * 1024 * 1024, () =>
-            {
-                triggered = true;
-            });
-            Trace.Assert(succeeded == true, "Not entered NoGC Region");
-            Thread.Sleep(sleep);
-            Trace.Assert(triggered == false, "Here we have not allocated anything");
+            triggered = false;
+            var succeeded = GC2.TryStartNoGCRegion(totalBytes, () => triggered = true);
+            Trace.Assert(succeeded);
+            Thread.Sleep(sleepTime);
+            Trace.Assert(!triggered);
 
-            var bytes = new Byte[99];
-            Thread.Sleep(sleep);
-            Trace.Assert(triggered == false, "No GC should have been triggered");
+            var bytes = new byte[99];
+            Thread.Sleep(sleepTime);
+            Trace.Assert(!triggered);
         }
         finally
         {
-            LNativeMemory.GC2.EndNoGCRegion();
+            GC2.EndNoGCRegion();
+            triggered = false;
         }
-
     }
 
-    unsafe static void TestAlignAlgos()
+    public void AllocatingOverLimitTriggersTheAction()
     {
-        var r = new Random();
-        for (int i = 0; i < 100; i++)
+        try
         {
-            var b = Marshal.AllocHGlobal(r.Next(100,500));
-            Trace.Assert(0 == b.ToInt64() % 16);
+            triggered = false;
+            var succeeded = GC2.TryStartNoGCRegion(totalBytes, () => triggered = true);
+            Trace.Assert(succeeded);
+            Trace.Assert(!triggered);
+
+            for (var i = 0; i < 3; i++) { var k = new byte[totalBytes]; }
+
+            Thread.Sleep(sleepTime);
+            Trace.Assert(triggered);
+        }
+        finally
+        {
+            GC2.EndNoGCRegion();
+            triggered = false;
         }
     }
 
-    static void Main(string[] args)
+    public void CanCallMultipleTimes()
     {
-        TestAlignAlgos();
+
+        for (int i = 0; i < 3; i++)
+        {
+            NoAllocationBeforeLimit();
+        }
+    }
+
+    public void CanUseNoGCRegion()
+    {
+        triggered = false;
+        using (new NoGCRegion(totalBytes, () => triggered = true))
+        {
+            for (var i = 0; i < 3; i++) { var k = new byte[totalBytes]; }
+            Thread.Sleep(sleepTime);
+            Trace.Assert(triggered);
+            triggered = false;
+        }
+    }
+
+    public static void Main()
+    {
+        var gc = new GC2Tests();
+        gc.AllocatingOverLimitTriggersTheAction();
+        gc.CanCallMultipleTimes();
+        gc.CanUseNoGCRegion();
+        gc.NoAllocationBeforeLimit();
     }
 }

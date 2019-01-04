@@ -2,11 +2,19 @@
 
   <PropertyGroup>
     <TargetFramework>netcoreapp3.0</TargetFramework>
-    <LangVersion>latest</LangVersion>
+    <LangVersion>8.0</LangVersion>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <ApplicationIcon />
     <OutputType>Exe</OutputType>
     <StartupObject />
   </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="ClrHeapAllocationAnalyzer" Version="1.0.0.9" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\LNativeMemory\LNativeMemory.csproj" />
+  </ItemGroup>
 
 </Project>

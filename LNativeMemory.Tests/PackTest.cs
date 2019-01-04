@@ -5,7 +5,8 @@ using Xunit;
 
 namespace LNativeMemory.Tests
 {
-#pragma warning disable 0169 // Unused variables in struct
+#pragma warning disable CA1823 // Unused variables in struct
+#pragma warning disable CS0169 // Unused variables in struct
     unsafe struct SPCL
     {
         byte* p;
@@ -68,7 +69,6 @@ namespace LNativeMemory.Tests
         foo12_inner inner;
         char c;
     };
-#pragma warning restore 0169
 
     public class PackTest
     {

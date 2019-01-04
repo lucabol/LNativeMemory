@@ -2,6 +2,7 @@
 {
     using System;
     using System.Diagnostics.Tracing;
+    using System.Runtime;
 
     internal sealed class GcEventListener : EventListener
     {
@@ -14,6 +15,7 @@
 
         internal GcEventListener(Action action)
         {
+            if (action == null) throw new ArgumentException(nameof(action));
             _action = action;
         }
         protected override void OnEventSourceCreated(EventSource eventSource)
@@ -30,7 +32,7 @@
             var eventName = eventData.EventName;
             if (_started && _isWarm && eventName == "GCStart_V2")
             {
-                _action();
+                if(_action != null) _action();
             }
             else if (_started && !_isWarm && eventName == "GCStart_V2")
             {
@@ -63,23 +65,22 @@
 
         public static void EndNoGCRegion()
         {
+            if (_evListener != null)
+            {
+                _evListener.Dispose();
+                _evListener = null;
+            }
             try
             {
-                if (_evListener != null)
-                {
-                    _evListener.Dispose();
-                    _evListener = null;
-                }
-                System.GC.EndNoGCRegion();
-            }
-            catch (InvalidOperationException)
+                GC.EndNoGCRegion();
+            } catch (Exception)
             {
+                
             }
-
         }
     }
 
-    public class NoGCRegion: IDisposable
+    public sealed class NoGCRegion: IDisposable
     {
         static readonly Action defaultErrorF = () => throw new OutOfMemoryException();
 
