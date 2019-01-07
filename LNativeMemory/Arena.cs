@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Diagnostics;
+using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
@@ -36,7 +37,7 @@ namespace LNativeMemory
             Debug.Assert((ulong)_nextAlloc % (ulong) alignment == 0);
 
             Debug.Assert((byte*)_nextAlloc + sizeOfType <= _endMemory,
-                    $"Trying to allocate {sizeOfType.ToString()} bytes for a type {typeof(T).FullName}.\nStart: {((int)_start).ToString()}\nNextAlloc: {((int)_nextAlloc).ToString()}\nSize:{((int)_size).ToString()}");
+                    $"Trying to allocate {sizeOfType.ToString(CultureInfo.CurrentCulture)} bytes for a type {typeof(T).FullName}.\nStart: {((int)_start).ToString(CultureInfo.CurrentCulture)}\nNextAlloc: {((int)_nextAlloc).ToString(CultureInfo.CurrentCulture)}\nSize:{((int)_size).ToString(CultureInfo.CurrentCulture)}");
 
             var ptr = _nextAlloc;
             _nextAlloc = (byte*)_nextAlloc + sizeOfType;
@@ -58,7 +59,7 @@ namespace LNativeMemory
             Debug.Assert((ulong)_nextAlloc % (ulong)alignment == 0);
 
             Debug.Assert((byte*)_nextAlloc + sizeOfArray <= _endMemory,
-                    $"Trying to allocate {sizeOfType.ToString()} bytes for a type {typeof(T).FullName}.\nStart: {((int)_start).ToString()}\nNextAlloc: {((int)_nextAlloc).ToString()}\nSize:{((int)_size).ToString()}");
+                    $"Trying to allocate {sizeOfType.ToString(CultureInfo.CurrentCulture)} bytes for a type {typeof(T).FullName}.\nStart: {((int)_start).ToString(CultureInfo.CurrentCulture)}\nNextAlloc: {((int)_nextAlloc).ToString(CultureInfo.CurrentCulture)}\nSize:{((int)_size).ToString(CultureInfo.CurrentCulture)}");
 
             var ptr = _nextAlloc;
             _nextAlloc = (byte*)_nextAlloc + sizeOfArray;

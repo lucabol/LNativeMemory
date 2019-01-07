@@ -7,10 +7,16 @@
     <ApplicationIcon />
     <OutputType>Exe</OutputType>
     <StartupObject />
+    <CodeAnalysisRuleSet>..\RuleSet1.ruleset</CodeAnalysisRuleSet>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="ClrHeapAllocationAnalyzer" Version="1.0.0.9" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp.FxCopAnalyzers" Version="1.0.0-beta2" />
+    <PackageReference Include="Microsoft.CodeAnalysis.FxCopAnalyzers" Version="2.6.2">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
+    </PackageReference>
   </ItemGroup>
 
   <ItemGroup>

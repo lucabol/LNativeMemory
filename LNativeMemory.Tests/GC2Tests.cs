@@ -1,7 +1,7 @@
 ﻿
 /**
-Stopping Garbage Collection in .NET Core 3.0
-===========================================
+Stopping Garbage Collection in .NET Core 3.0 (part I)
+====================================================
 
 Scenario
 ---

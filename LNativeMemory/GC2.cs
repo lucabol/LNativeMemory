@@ -1,8 +1,10 @@
-﻿namespace LNativeMemory
+﻿using System;
+using System.Diagnostics.Tracing;
+
+[assembly: CLSCompliant(false)]
+
+namespace LNativeMemory
 {
-    using System;
-    using System.Diagnostics.Tracing;
-    using System.Runtime;
 
     internal sealed class GcEventListener : EventListener
     {
@@ -15,12 +17,11 @@
 
         internal GcEventListener(Action action)
         {
-            if (action == null) throw new ArgumentException(nameof(action));
-            _action = action;
+            _action = action ?? throw new ArgumentNullException(nameof(action));
         }
         protected override void OnEventSourceCreated(EventSource eventSource)
         {
-            if (eventSource.Name.Equals("Microsoft-Windows-DotNETRuntime"))
+            if (eventSource.Name.Equals("Microsoft-Windows-DotNETRuntime", StringComparison.Ordinal))
             {
                 _eventSource = eventSource;
                 EnableEvents(eventSource, EventLevel.Verbose, (EventKeywords)(-1));
@@ -60,6 +61,7 @@
             _evListener = new GcEventListener(actionWhenAllocatedMore);
             var succeeded = GC.TryStartNoGCRegion(totalSize, false);
             _evListener.Start();
+
             return succeeded;
         }
 
@@ -75,20 +77,27 @@
                 GC.EndNoGCRegion();
             } catch (Exception)
             {
-                
+
             }
         }
     }
 
+    public class OutOfGCHeapMemoryException : OutOfMemoryException {
+        public OutOfGCHeapMemoryException(string message) : base(message) { }
+        public OutOfGCHeapMemoryException(string message, Exception innerException) : base(message, innerException) { }
+        public OutOfGCHeapMemoryException() : base() { }
+
+    }
+
     public sealed class NoGCRegion: IDisposable
     {
-        static readonly Action defaultErrorF = () => throw new OutOfMemoryException();
+        static readonly Action defaultErrorF = () => throw new OutOfGCHeapMemoryException();
 
         public NoGCRegion(int totalSize, Action actionWhenAllocatedMore)
         {
             var succeeded = GC2.TryStartNoGCRegion(totalSize, actionWhenAllocatedMore);
             if (!succeeded)
-                throw new Exception("Cannot enter NoGCRegion");
+                throw new InvalidOperationException("Cannot enter NoGCRegion");
         }
 
         public NoGCRegion(int totalSize) : this(totalSize, defaultErrorF) { }

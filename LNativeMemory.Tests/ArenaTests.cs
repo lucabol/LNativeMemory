@@ -7,6 +7,8 @@ using System.Linq;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 
+[assembly: CLSCompliant(false)]
+
 namespace LNativeMemory.Tests
 {
 
