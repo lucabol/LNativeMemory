@@ -36,4 +36,8 @@
     <ProjectReference Include="..\LNativeMemory\LNativeMemory.csproj" />
   </ItemGroup>
 
+  <Target Name="PostBuild" AfterTargets="PostBuildEvent">
+    <Exec Command="llite.exe $(ProjectDir)GC2Tests.cs -l csharp" />
+  </Target>
+
 </Project>

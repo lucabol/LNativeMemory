@@ -11,7 +11,7 @@ namespace LNativeMemory
 
         void Reset();
 
-        uint BytesLeft { get; }
-        uint TotalBytes { get; }
+        long BytesLeft { get; }
+        long TotalBytes { get; }
     }
 }

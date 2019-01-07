@@ -7,11 +7,10 @@ using System;
 
 namespace MyConsoleTest
 {
-    // XUnit executes all tests in a class sequentially, so no problem with multithreading calls to GC
     public static class GC2Tests
     {
 
-        const int sleepTime = 100;
+        const int sleepTime = 200;
         // 32 bits workstation GC ephemeral segment size
         // (https://mattwarren.org/2016/08/16/Preventing-dotNET-Garbage-Collections-with-the-TryStartNoGCRegion-API/)
         const int totalBytes = 16 * 1024 * 1024;

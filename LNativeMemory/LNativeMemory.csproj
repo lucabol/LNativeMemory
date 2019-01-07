@@ -17,4 +17,8 @@
     <PackageReference Include="System.Runtime.CompilerServices.Unsafe" Version="4.6.0-preview.18571.3" />
   </ItemGroup>
 
+  <Target Name="PostBuild" AfterTargets="PostBuildEvent">
+    <Exec Command="llite.exe $(ProjectDir)GC2.cs -l csharp" />
+  </Target>
+
 </Project>

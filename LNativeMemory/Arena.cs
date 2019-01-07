@@ -22,9 +22,6 @@ namespace LNativeMemory
             Unsafe.InitBlock(_start, 0, _size);
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void* Align(void* mem, int alignment) => (void*)(((ulong)mem + (ulong)alignment - 1) & ~((ulong)alignment - 1));
-
         public ref T Alloc<T>(int sizeOfType = 0, int alignment = 16, in T what = default(T)) where T : unmanaged
         {
             Debug.Assert(sizeOfType >= 0);
@@ -74,8 +71,11 @@ namespace LNativeMemory
             _nextAlloc = _start;
         }
 
-        public uint BytesLeft => _size - (uint)((byte*)_nextAlloc - (byte*)_start);
-        public uint TotalBytes => _size;
+        public long BytesLeft => _size - (long)((byte*)_nextAlloc - (byte*)_start);
+        public long TotalBytes => _size;
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static void* Align(void* mem, int alignment) => (void*)(((ulong)mem + (ulong)alignment - 1) & ~((ulong)alignment - 1));
     }
 
     public unsafe sealed class NativeArena : IDisposable
