@@ -12,7 +12,7 @@ Disclaimer
 For any normal kind of applications, *YOU DON'T NEED TO DO THIS*. You are likely to make your application run slower or blow up memory.
 If you have an hot path in your application (i.e. you are creating an editor with Intellisense), use the GC latency modes.
 Use the code below just under extreme circumstance as it is untested, error prone and wacky.
-You are probably better off waiting for an official way of doing it (i.e. when [this](https://github.com/dotnet/coreclr/issues/21750#issuecomment-450990011)
+You are probably better off waiting for an official way of doing it (i.e. when [this](https://github.com/dotnet/coreclr/issues/21750)
 is implemented)
 
 The problem with TryStartNoGCRegion
@@ -50,7 +50,9 @@ namespace LNativeMemory.Tests
 We need to use a timer to maximize the chances that a GC happens in some of the tests. Also we allocate an amount that should
 work in all GC configuration as per the article above. `trigger` is a static field so as to stay zero-allocation
 (otherwise the delegate will have to capture the a local `trigger` variable creating a heap allocated closure).
-Not that it matters any to be zero-allocation in this test, but I like to keep ClrHeapAllocationAnalyzer happy.
+Not that it matters any to be zero-allocation in this test, but I like to keep
+[ClrHeapAllocationAnalyzer](https://github.com/Microsoft/RoslynClrHeapAllocationAnalyzer) happy.
+
 BTW: XUnit executes all tests in a class sequentially, so no problem with multi-threading calls to GC.
         **/
         const int sleepTime = 200;

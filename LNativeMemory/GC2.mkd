@@ -31,9 +31,10 @@ Instead, I create it before such call, but then I make it 'switch on' just after
     {
         Action _action;
         EventSource _eventSource;
-        bool _started = false;
+        bool _active = false;
 
-        internal void Start() { _started = true; }
+        internal void Start() { _active = true; }
+        internal void Stop() { _active = false; }
 
         
 ~~~
@@ -49,17 +50,22 @@ As described in part one, you pass a delegate at creation time, which is called 
 
 We register to all the events coming from .NET. We want to call the delegate at the exact point when garbage collection is turned on again.
 We don't have a clean way to do that (aka there is no runtime event we can hook up to, see [here](https://github.com/dotnet/coreclr/issues/21750),
-so listening to every single event gives us the most chances of doing it right. Also it ties us the least to any pattern of events, which
+so listening to every single GC event gives us the most chances of doing it right. Also it ties us the least to any pattern of events, which
 might change in the future.
         
 
 ~~~csharp
+        // from https://docs.microsoft.com/en-us/dotnet/framework/performance/garbage-collection-etw-events
+        private const int GC_KEYWORD = 0x0000001;
+        private const int TYPE_KEYWORD = 0x0080000;
+        private const int GCHEAPANDTYPENAMES_KEYWORD = 0x1000000;
+
         protected override void OnEventSourceCreated(EventSource eventSource)
         {
             if (eventSource.Name.Equals("Microsoft-Windows-DotNETRuntime", StringComparison.Ordinal))
             {
                 _eventSource = eventSource;
-                EnableEvents(eventSource, EventLevel.Verbose, (EventKeywords)(-1));
+                EnableEvents(eventSource, EventLevel.Verbose, (EventKeywords)(GC_KEYWORD | GCHEAPANDTYPENAMES_KEYWORD | TYPE_KEYWORD));
             }
         }
 
@@ -73,23 +79,10 @@ For each event, I check if the garbage collector has exited the NoGC region. If 
         protected override void OnEventWritten(EventWrittenEventArgs eventData)
         {
             var eventName = eventData.EventName;
-            if(_started && GCSettings.LatencyMode != GCLatencyMode.NoGCRegion)
+            if(_active && GCSettings.LatencyMode != GCLatencyMode.NoGCRegion)
             {
                 _action?.Invoke();
             }
-        }
-
-        
-~~~
-
-Oh, `IDisposable` gods, I invoke you!! Cast your wise eyes on this implementation. Is it correct?
-        
-
-~~~csharp
-        public override void Dispose() {
-            _action = null;
-            DisableEvents(_eventSource);
-            base.Dispose();
         }
     }
 
@@ -130,11 +123,8 @@ Now read the above repeatedly until you got. Or just trust that it works somehow
 ~~~csharp
         public static void EndNoGCRegion()
         {
-            if (_evListener != null)
-            {
-                _evListener.Dispose();
-                _evListener = null;
-            }
+            _evListener.Stop();
+
             try
             {
                 GC.EndNoGCRegion();
