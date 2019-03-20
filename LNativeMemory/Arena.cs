@@ -6,8 +6,10 @@ using System.Runtime.InteropServices;
 
 namespace LNativeMemory
 {
+    public struct EnableBoundsCheck { }
+    public struct DisableBoundsCheck { }
 
-    public unsafe class Arena : IAllocator
+    public unsafe class Arena<TBoundCheckPolicy> : IAllocator
     {
         private void* _start;
         private void* _nextAlloc;
@@ -31,8 +33,15 @@ namespace LNativeMemory
             if (sizeOfType == 0) sizeOfType = sizeof(T);
 
             _nextAlloc = Align(_nextAlloc, alignment);
-            Debug.Assert((ulong)_nextAlloc % (ulong) alignment == 0);
 
+            if(typeof(TBoundCheckPolicy) == typeof(EnableBoundsCheck))
+            {
+                Trace.Assert((ulong)_nextAlloc % (ulong)alignment == 0);
+                Trace.Assert((byte*)_nextAlloc + sizeOfType <= _endMemory,
+                        $"Trying to allocate {sizeOfType.ToString(CultureInfo.CurrentCulture)} bytes for a type {typeof(T).FullName}.\nStart: {((int)_start).ToString(CultureInfo.CurrentCulture)}\nNextAlloc: {((int)_nextAlloc).ToString(CultureInfo.CurrentCulture)}\nSize:{((int)_size).ToString(CultureInfo.CurrentCulture)}");
+            }
+
+            Debug.Assert((ulong)_nextAlloc % (ulong) alignment == 0);
             Debug.Assert((byte*)_nextAlloc + sizeOfType <= _endMemory,
                     $"Trying to allocate {sizeOfType.ToString(CultureInfo.CurrentCulture)} bytes for a type {typeof(T).FullName}.\nStart: {((int)_start).ToString(CultureInfo.CurrentCulture)}\nNextAlloc: {((int)_nextAlloc).ToString(CultureInfo.CurrentCulture)}\nSize:{((int)_size).ToString(CultureInfo.CurrentCulture)}");
 
@@ -78,18 +87,19 @@ namespace LNativeMemory
         private static void* Align(void* mem, int alignment) => (void*)(((ulong)mem + (ulong)alignment - 1) & ~((ulong)alignment - 1));
     }
 
-    public unsafe sealed class NativeArena : IDisposable
+
+    public unsafe sealed class NativeArena<TBoundCheckPolicy> : IDisposable
     {
 
         private IntPtr _start;
-        public Arena Arena { get; }
+        public Arena<TBoundCheckPolicy> Arena { get; }
 
         public NativeArena(int totalBytes)
         {
             Trace.Assert(totalBytes > 0);
 
             _start = Marshal.AllocHGlobal(totalBytes);
-            Arena = new Arena(new Span<byte>(_start.ToPointer(), totalBytes));
+            Arena = new Arena<TBoundCheckPolicy> (new Span<byte>(_start.ToPointer(), totalBytes));
         }
 
         #region IDisposable Support

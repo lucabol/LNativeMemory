@@ -38,7 +38,7 @@ namespace LNativeMemory.Tests
         {
 
             var allData = new List<object[]> {
-                new object[] { new NativeArena(bufferSize).Arena }
+                new object[] { new NativeArena<EnableBoundsCheck>(bufferSize).Arena }
             };
 
             return allData.Take(numTests);
@@ -141,14 +141,14 @@ namespace LNativeMemory.Tests
         {
             var buffer = stackalloc byte[100];
 
-            var ar = new Arena(new Span<byte>(&buffer[0], 100));
+            var ar = new Arena<EnableBoundsCheck>(new Span<byte>(&buffer[0], 100));
             var k = ar.AllocSpan<double>(2);
             Assert.Equal(0, k[0]);
             k[0] = 3;
             Assert.Equal(2, k.Length);
 
-            ar = new Arena(new Span<byte>(&buffer[0], 100));
-            k = ar.AllocSpan<double>(2);
+            var ar2 = new Arena<DisableBoundsCheck>(new Span<byte>(&buffer[0], 100));
+            k = ar2.AllocSpan<double>(2);
             Assert.Equal(0, k[0]);
             Assert.Equal(2, k.Length);
         }
