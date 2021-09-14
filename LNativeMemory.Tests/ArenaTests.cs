@@ -24,16 +24,17 @@ namespace LNativeMemory.Tests
     }
 #pragma warning restore CA1823
 
-    public sealed class MyTests : IDisposable
+    public sealed class ArenaTests : IDisposable
     {
 
         private const int bufferSize = 10_000;
 
-        public MyTests()
+        public ArenaTests()
         {
 
         }
 
+#pragma warning disable CA2000
         public static IEnumerable<object[]> GetAllocator(int numTests)
         {
 
@@ -43,6 +44,7 @@ namespace LNativeMemory.Tests
 
             return allData.Take(numTests);
         }
+#pragma warning restore CA2000
 
         [Theory]
         [MemberData(nameof(GetAllocator), parameters: 1)]

@@ -103,7 +103,7 @@ Now read the above repeatedly until you got. Or just trust that it works somehow
             try
             {
                 GC.EndNoGCRegion();
-            } catch (Exception)
+            } catch (InvalidOperationException)
             {
 
             }
