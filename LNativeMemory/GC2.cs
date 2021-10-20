@@ -10,7 +10,7 @@ using System.Runtime;
 /**
 The FxCop code analyzers get upset if I don't declare this, which also impede me from using unsigned numeral types in interfaces.
 **/
-[assembly: CLSCompliant(true)]
+//[assembly: CLSCompliant(true)]
 
 namespace LNativeMemory
 {

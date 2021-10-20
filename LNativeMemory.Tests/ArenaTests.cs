@@ -1,13 +1,7 @@
 using System;
 using Xunit;
-using LNativeMemory;
 using System.Runtime.InteropServices;
-using System.Collections.Generic;
-using System.Linq;
-using System.Diagnostics;
 using System.Runtime.CompilerServices;
-
-[assembly: CLSCompliant(false)]
 
 namespace LNativeMemory.Tests
 {
@@ -34,22 +28,11 @@ namespace LNativeMemory.Tests
 
         }
 
-#pragma warning disable CA2000
-        public static IEnumerable<object[]> GetAllocator(int numTests)
+        [Fact]
+        public void CanAllocateStruct()
         {
-
-            var allData = new List<object[]> {
-                new object[] { new NativeArena<EnableBoundsCheck>(bufferSize).Arena }
-            };
-
-            return allData.Take(numTests);
-        }
-#pragma warning restore CA2000
-
-        [Theory]
-        [MemberData(nameof(GetAllocator), parameters: 1)]
-        public void CanAllocateStruct<T>(T ar) where T : IAllocator
-        {
+            using var na = new NativeArena<EnableBoundsCheck, ZeroMemory>(bufferSize);
+            var ar = na.Arena;
             ref var s = ref ar.Alloc<CStruct>();
             Assert.Equal(0, s.X);
             s.X = 3;
@@ -62,10 +45,11 @@ namespace LNativeMemory.Tests
             foreach (var c in span) Assert.Equal(3, c.X);
         }
 
-        [Theory]
-        [MemberData(nameof(GetAllocator), parameters: 1)]
-        public void CanAllocatePrimitiveTypes<T>(T ar) where T : IAllocator
+        [Fact]
+        public void CanAllocatePrimitiveTypes()
         {
+            using var na = new NativeArena<EnableBoundsCheck, ZeroMemory>(bufferSize);
+            var ar = na.Arena;
             var ispan = ar.AllocSpan<int>(10);
             var fspan = ar.AllocSpan<float>(10);
             var dspan = ar.AllocSpan<double>(10);
@@ -94,10 +78,11 @@ namespace LNativeMemory.Tests
             }
         }
 
-        [Theory]
-        [MemberData(nameof(GetAllocator), parameters: 1)]
-        public unsafe void AlignsCorrectly<T>(T ar) where T : IAllocator
+        [Fact]
+        public unsafe void AlignsCorrectly()
         {
+            using var na = new NativeArena<EnableBoundsCheck, ZeroMemory>(bufferSize);
+            var ar = na.Arena;
             ar.Alloc<byte>(); // tries to screw the alignment
             ref var de = ref ar.Alloc<decimal>();
             Assert.Equal(0, (long)Unsafe.AsPointer(ref de) % 8);
@@ -111,11 +96,13 @@ namespace LNativeMemory.Tests
         }
 
 
-        [Theory]
-        [MemberData(nameof(GetAllocator), parameters: 1)]
-        public void CanInitializeAndAllocate<T>(T ar) where T : IAllocator
+        [Fact]
+        public void CanInitializeAndAllocate()
         {
-            ref var s = ref ar.Alloc(what: new CStruct { X = 6 });
+            using var na = new NativeArena<EnableBoundsCheck, ZeroMemory>(bufferSize);
+            var ar = na.Arena;
+            ref var s = ref ar.Alloc<CStruct>();
+            s = new CStruct { X = 6 };
             Assert.Equal(6, s.X);
 
             var span = ar.AllocSpan<CStruct>(10);
@@ -124,10 +111,11 @@ namespace LNativeMemory.Tests
             for (int i = 0; i < span.Length; i++) Assert.Equal(7, span[i].X);
         }
 
-        [Theory]
-        [MemberData(nameof(GetAllocator), parameters: 1)]
-        public void GeApproxForAlignmentCorrectRemainingSize<T>(T ar) where T : IAllocator
+        [Fact]
+        public void GeApproxForAlignmentCorrectRemainingSize()
         {
+            using var na = new NativeArena<EnableBoundsCheck, NonZeroMemory>(bufferSize);
+            var ar = na.Arena;
             // Variable alignment requires these tests not to be simple equalities, approx so that remaining bytes are in a reasonable range
             ar.Alloc<float>();
             Assert.True(ar.BytesLeft <= (uint)(bufferSize - sizeof(float)));
@@ -143,22 +131,24 @@ namespace LNativeMemory.Tests
         {
             var buffer = stackalloc byte[100];
 
-            var ar = new Arena<EnableBoundsCheck>(new Span<byte>(&buffer[0], 100));
+            var ar = new Arena<EnableBoundsCheck, ZeroMemory>(new Span<byte>(&buffer[0], 100));
             var k = ar.AllocSpan<double>(2);
             Assert.Equal(0, k[0]);
             k[0] = 3;
             Assert.Equal(2, k.Length);
 
-            var ar2 = new Arena<DisableBoundsCheck>(new Span<byte>(&buffer[0], 100));
+            var ar2 = new Arena<DisableBoundsCheck, NonZeroMemory>(new Span<byte>(&buffer[0], 100));
             k = ar2.AllocSpan<double>(2);
+            k[0] = 0;
             Assert.Equal(0, k[0]);
             Assert.Equal(2, k.Length);
         }
 
-        [Theory]
-        [MemberData(nameof(GetAllocator), parameters: 1)]
-        public void ResetWorks<T>(T ar) where T : IAllocator
+        [Fact]
+        public void ResetWorks()
         {
+            using var na = new NativeArena<EnableBoundsCheck, ZeroMemory>(bufferSize);
+            var ar = na.Arena;
             ar.AllocSpan<CStruct>(20);
             Assert.True(ar.BytesLeft < ar.TotalBytes);
             ar.Reset();

@@ -8,23 +8,28 @@ namespace LNativeMemory
 {
     public struct EnableBoundsCheck { }
     public struct DisableBoundsCheck { }
+    public struct ZeroMemory {}
+    public struct NonZeroMemory {}
 
-    public unsafe class Arena<TBoundCheckPolicy> : IAllocator
+    public unsafe ref struct Arena<TBoundCheckPolicy, TZeroMemoryPolicy>
     {
         private void* _start;
         private void* _nextAlloc;
         private uint _size;
-        private void* _endMemory;
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Arena(Span<byte> memory)
         {
             _start = _nextAlloc = Unsafe.AsPointer<byte>(ref memory[0]);
             _size = (uint)memory.Length;
-            _endMemory = Unsafe.Add<byte>(_start, (int)_size);
-            Unsafe.InitBlock(_start, 0, _size);
+
+            if(typeof(TZeroMemoryPolicy) == typeof(ZeroMemory)) {
+              Unsafe.InitBlock(_start, 0, _size);
+            }
         }
 
-        public ref T Alloc<T>(int sizeOfType = 0, int alignment = 16, in T what = default(T)) where T : unmanaged
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public ref T Alloc<T>(int sizeOfType = 0, int alignment = 16) where T : unmanaged
         {
             Debug.Assert(sizeOfType >= 0);
             Debug.Assert(alignment >= 0);
@@ -37,21 +42,25 @@ namespace LNativeMemory
             if(typeof(TBoundCheckPolicy) == typeof(EnableBoundsCheck))
             {
                 Trace.Assert((ulong)_nextAlloc % (ulong)alignment == 0);
-                Trace.Assert((byte*)_nextAlloc + sizeOfType <= _endMemory,
+                Trace.Assert((byte*)_nextAlloc + sizeOfType <= Unsafe.Add<byte>(_start, (int)_size),
                         $"Trying to allocate {sizeOfType.ToString(CultureInfo.CurrentCulture)} bytes for a type {typeof(T).FullName}.\nStart: {((int)_start).ToString(CultureInfo.CurrentCulture)}\nNextAlloc: {((int)_nextAlloc).ToString(CultureInfo.CurrentCulture)}\nSize:{((int)_size).ToString(CultureInfo.CurrentCulture)}");
             }
 
             Debug.Assert((ulong)_nextAlloc % (ulong) alignment == 0);
-            Debug.Assert((byte*)_nextAlloc + sizeOfType <= _endMemory,
+            Debug.Assert((byte*)_nextAlloc + sizeOfType <= Unsafe.Add<byte>(_start, (int)_size),
                     $"Trying to allocate {sizeOfType.ToString(CultureInfo.CurrentCulture)} bytes for a type {typeof(T).FullName}.\nStart: {((int)_start).ToString(CultureInfo.CurrentCulture)}\nNextAlloc: {((int)_nextAlloc).ToString(CultureInfo.CurrentCulture)}\nSize:{((int)_size).ToString(CultureInfo.CurrentCulture)}");
 
             var ptr = _nextAlloc;
             _nextAlloc = (byte*)_nextAlloc + sizeOfType;
             ref var ret = ref Unsafe.AsRef<T>(ptr);
-            ret = what;
+
+            if(typeof(TZeroMemoryPolicy) == typeof(ZeroMemory)) {
+              Unsafe.InitBlock(ptr, 0, (uint)sizeOfType);
+            }
             return ref ret;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Span<T> AllocSpan<T>(int n, int sizeOfType = 0, int alignment = 16) where T : unmanaged
         {
             Debug.Assert(sizeOfType >= 0);
@@ -62,21 +71,30 @@ namespace LNativeMemory
             var sizeOfArray = sizeOfType * n;
 
             _nextAlloc = Align(_nextAlloc, alignment);
-            Debug.Assert((ulong)_nextAlloc % (ulong)alignment == 0);
 
-            Debug.Assert((byte*)_nextAlloc + sizeOfArray <= _endMemory,
+            Debug.Assert((ulong)_nextAlloc % (ulong)alignment == 0);
+            Debug.Assert((byte*)_nextAlloc + sizeOfArray <= Unsafe.Add<byte>(_start, (int)_size),
                     $"Trying to allocate {sizeOfType.ToString(CultureInfo.CurrentCulture)} bytes for a type {typeof(T).FullName}.\nStart: {((int)_start).ToString(CultureInfo.CurrentCulture)}\nNextAlloc: {((int)_nextAlloc).ToString(CultureInfo.CurrentCulture)}\nSize:{((int)_size).ToString(CultureInfo.CurrentCulture)}");
+
+            if(typeof(TBoundCheckPolicy) == typeof(EnableBoundsCheck))
+            {
+                Trace.Assert((ulong)_nextAlloc % (ulong)alignment == 0);
+                Trace.Assert((byte*)_nextAlloc + sizeOfArray <= Unsafe.Add<byte>(_start, (int)_size),
+                        $"Trying to allocate {sizeOfArray.ToString(CultureInfo.CurrentCulture)} bytes for a type {typeof(T).FullName}.\nStart: {((int)_start).ToString(CultureInfo.CurrentCulture)}\nNextAlloc: {((int)_nextAlloc).ToString(CultureInfo.CurrentCulture)}\nSize:{((int)_size).ToString(CultureInfo.CurrentCulture)}");
+            }
 
             var ptr = _nextAlloc;
             _nextAlloc = (byte*)_nextAlloc + sizeOfArray;
 
-            Unsafe.InitBlock(ptr, 0, (uint)sizeOfArray);
             return new Span<T>(ptr,n);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Reset()
         {
-            Unsafe.InitBlock(_start, 0, _size);
+            if(typeof(TZeroMemoryPolicy) == typeof(ZeroMemory)) {
+              Unsafe.InitBlock(_start, 0, _size);
+            }
             _nextAlloc = _start;
         }
 
@@ -88,32 +106,24 @@ namespace LNativeMemory
     }
 
 
-    public unsafe sealed class NativeArena<TBoundCheckPolicy> : IDisposable
+    public unsafe ref struct NativeArena<TBoundCheckPolicy, TZeroMemoryPolicy>
     {
 
-        private IntPtr _start;
-        public Arena<TBoundCheckPolicy> Arena { get; }
+        static private IntPtr _start;
+        public Arena<TBoundCheckPolicy, TZeroMemoryPolicy> Arena { get; }
 
         public NativeArena(int totalBytes)
         {
             Trace.Assert(totalBytes > 0);
 
             _start = Marshal.AllocHGlobal(totalBytes);
-            Arena = new Arena<TBoundCheckPolicy> (new Span<byte>(_start.ToPointer(), totalBytes));
-        }
-
-        #region IDisposable Support
-        ~NativeArena()
-        {
-            Dispose();
+            Arena = new Arena<TBoundCheckPolicy, TZeroMemoryPolicy> (new Span<byte>(_start.ToPointer(), totalBytes));
         }
 
         public void Dispose()
         {
             Marshal.FreeHGlobal(_start);
-            GC.SuppressFinalize(this);
         }
-        #endregion
     }
 
 }
