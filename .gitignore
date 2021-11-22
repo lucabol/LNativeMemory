@@ -2,6 +2,7 @@
 # Created by https://www.gitignore.io/api/visualstudio,visualstudiocode
 # Edit at https://www.gitignore.io/?templates=visualstudio,visualstudiocode
 
+tmp
 ### VisualStudioCode ###
 .vscode/*
 !.vscode/settings.json

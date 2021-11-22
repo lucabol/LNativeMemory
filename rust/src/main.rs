@@ -1,3 +1,5 @@
+use std::env;
+
 #[derive(Clone)]
 struct Man {
     strength: u32,
@@ -13,47 +15,41 @@ struct Dwarf {
     will: u32,
 }
 
-struct WarSystem {
-    men: Vec<Man>,
-    elves: Vec<Elf>,
-    dwarves: Vec<Dwarf>,
-}
+fn value_army(men: &mut Vec<Man>, elves: &mut Vec<Elf>, dwarves: &mut Vec<Dwarf>, n: usize) -> u32 {
 
-impl WarSystem {
-    pub fn init(soldiers: usize) -> WarSystem {
-        return WarSystem {
-            men: vec![
-                Man {
-                    strength: 1,
-                    stamina: 1
-                };
-                soldiers / 3
-            ],
-            elves: vec![Elf { age: 1, magic: 1 }; soldiers / 3],
-            dwarves: vec![Dwarf { will: 1 }; soldiers / 3],
-        };
+    men.resize(n, Man { strength: 1, stamina: 1 });
+    elves.resize(n, Elf { age: 1, magic: 1 });
+    dwarves.resize(n, Dwarf { will: 1 });
+
+    let mut sum: u32 = 0;
+    for i in 0..n {
+        sum += if n % 3 == 0 { men[i].strength * men[i].stamina }
+               else if n % 3 == 1 { elves[i].age * elves[i].magic * 2 }
+               else { dwarves[i].will * 10 }
     }
 
-    pub fn value_army(self: &Self) -> u32 {
-        let mut sum: u32 = 0;
-        for s in &self.men {
-            sum += s.strength * s.stamina;
-        }
-        for s in &self.elves {
-            sum += s.age * s.magic * 2;
-        }
-        for s in &self.dwarves {
-            sum += s.will * 10;
-        }
-        return sum;
-    }
+    men.clear();
+    elves.clear();
+    dwarves.clear();
+    return sum;
 }
 
-pub fn main() {
-    let w = WarSystem::init(30_000_000);
+fn main() {
+    let args: Vec<String> = env::args().collect();
+    if args.len() != 3 {
+        println!("Must have two args");
+        std::process::exit(-1);
+    }
+    let n = args[1].parse::<usize>().unwrap();
+    let m = args[2].parse::<usize>().unwrap();
 
-    let v = w.value_army();
-    if v != 130_000_000 {
-        panic!("Wrong Sum");
-    };
+    let mut men = Vec::with_capacity(n);
+    let mut elves = Vec::with_capacity(n);
+    let mut dwarves = Vec::with_capacity(n);
+
+    let mut sum:u32 = 0;
+    for _i in 0..m {
+        sum += value_army(&mut men, &mut elves, &mut dwarves, n);
+    }
+    std::process::exit(sum as i32);
 }
